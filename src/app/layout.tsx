@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Suspense } from "react";
+import PageViewTracker from "@/components/PageViewTracker";
 import "./globals.css";
 
 const inter = Inter({
@@ -16,7 +18,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Suspense fallback={null}>
+          <PageViewTracker />
+        </Suspense>
+        {children}
+      </body>
     </html>
   );
 }
