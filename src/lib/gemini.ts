@@ -31,6 +31,25 @@ function extractJson(text: string): unknown {
   return JSON.parse(cleaned.slice(start, end + 1));
 }
 
+function esErrorTransitorio(error: unknown): boolean {
+  const status = (error as { status?: number })?.status;
+  return status === 503 || status === 429;
+}
+
+async function conReintentos<T>(fn: () => Promise<T>, intentos = 3): Promise<T> {
+  let ultimoError: unknown;
+  for (let i = 0; i < intentos; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      ultimoError = error;
+      if (!esErrorTransitorio(error) || i === intentos - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** i));
+    }
+  }
+  throw ultimoError;
+}
+
 function fallbackResult(perfil: PerfilEgresado, vacante: string): MatchResult {
   const vacanteLower = vacante.toLowerCase();
   const matchedSkills = perfil.habilidades.filter((h) => vacanteLower.includes(h.toLowerCase()));
@@ -82,11 +101,11 @@ export async function analizarMatch(perfil: PerfilEgresado, vacante: string): Pr
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: "gemini-3.5-flash",
       systemInstruction: SYSTEM_PROMPT,
     });
 
-    const result = await model.generateContent(buildUserPrompt(perfil, vacante));
+    const result = await conReintentos(() => model.generateContent(buildUserPrompt(perfil, vacante)));
     const text = result.response.text();
     const parsed = extractJson(text) as MatchResult;
     return parsed;
@@ -139,12 +158,12 @@ export async function mejorarExperiencia(
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: "gemini-3.5-flash",
       systemInstruction: EXPERIENCIA_SYSTEM_PROMPT,
     });
 
     const prompt = `Puesto: ${puesto || "(sin especificar)"}\nEmpresa: ${empresa || "(sin especificar)"}\nLíneas del candidato:\n${texto}`;
-    const result = await model.generateContent(prompt);
+    const result = await conReintentos(() => model.generateContent(prompt));
     const parsed = extractJson(result.response.text()) as { bullets: string[] };
     return parsed.bullets.join("\n");
   } catch (error) {
@@ -207,12 +226,12 @@ export async function mejorarResumen(
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: "gemini-3.5-flash",
       systemInstruction: RESUMEN_SYSTEM_PROMPT,
     });
 
     const prompt = `Resumen borrador del candidato: "${borrador || "(vacío, sin pistas)"}"\nHabilidades: ${habilidades.join(", ") || "(ninguna)"}\nEducación: ${JSON.stringify(educacion)}\nExperiencia: ${JSON.stringify(experiencia)}`;
-    const result = await model.generateContent(prompt);
+    const result = await conReintentos(() => model.generateContent(prompt));
     const parsed = extractJson(result.response.text()) as { resumen: string };
     return parsed.resumen;
   } catch (error) {
