@@ -1,11 +1,14 @@
 "use client";
 
-import { Plus, Trash2, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import { Plus, Trash2, ArrowRight, Sparkles, Loader2 } from "lucide-react";
 import type { PerfilEgresado } from "@/lib/types";
 
 const inputClass =
   "w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20";
 const labelClass = "mb-1.5 block text-sm font-medium text-navy-light";
+const aiButtonClass =
+  "flex items-center gap-1 text-xs font-semibold text-mint hover:text-mint-light disabled:cursor-not-allowed disabled:opacity-50";
 
 interface Props {
   perfil: PerfilEgresado;
@@ -14,8 +17,73 @@ interface Props {
 }
 
 export default function StepPerfil({ perfil, onChange, onNext }: Props) {
+  const [mejorandoResumen, setMejorandoResumen] = useState(false);
+  const [mejorandoExperienciaId, setMejorandoExperienciaId] = useState<string | null>(null);
+  const [errorIa, setErrorIa] = useState<string | null>(null);
+
   const update = <K extends keyof PerfilEgresado>(key: K, value: PerfilEgresado[K]) => {
     onChange({ ...perfil, [key]: value });
+  };
+
+  const handleMejorarResumen = async () => {
+    setMejorandoResumen(true);
+    setErrorIa(null);
+    try {
+      const res = await fetch("/api/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "resumen",
+          borrador: perfil.resumen,
+          habilidades: perfil.habilidades,
+          educacion: perfil.educacion,
+          experiencia: perfil.experiencia,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorIa(data.error ?? "No se pudo mejorar el resumen.");
+        return;
+      }
+      update("resumen", data.resultado);
+    } catch {
+      setErrorIa("Ocurrió un error de conexión. Intenta de nuevo.");
+    } finally {
+      setMejorandoResumen(false);
+    }
+  };
+
+  const handleMejorarExperiencia = async (id: string) => {
+    const exp = perfil.experiencia.find((e) => e.id === id);
+    if (!exp) return;
+
+    setMejorandoExperienciaId(id);
+    setErrorIa(null);
+    try {
+      const res = await fetch("/api/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "experiencia",
+          puesto: exp.puesto,
+          empresa: exp.empresa,
+          texto: exp.descripcion,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorIa(data.error ?? "No se pudo mejorar esta experiencia.");
+        return;
+      }
+      const next = perfil.experiencia.map((e) =>
+        e.id === id ? { ...e, descripcion: data.resultado } : e
+      );
+      update("experiencia", next);
+    } catch {
+      setErrorIa("Ocurrió un error de conexión. Intenta de nuevo.");
+    } finally {
+      setMejorandoExperienciaId(null);
+    }
   };
 
   const addEducacion = () => {
@@ -86,15 +154,34 @@ export default function StepPerfil({ perfil, onChange, onNext }: Props) {
         </div>
 
         <div>
-          <label className={labelClass}>Resumen profesional</label>
+          <div className="flex items-center justify-between">
+            <label className={labelClass}>Resumen profesional</label>
+            <button
+              type="button"
+              onClick={handleMejorarResumen}
+              disabled={mejorandoResumen}
+              className={aiButtonClass}
+            >
+              {mejorandoResumen ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Sparkles size={14} />
+              )}
+              Mejorar con IA
+            </button>
+          </div>
           <textarea
             className={inputClass}
             rows={3}
             value={perfil.resumen}
             onChange={(e) => update("resumen", e.target.value)}
-            placeholder="Breve descripción de quién eres y qué buscas profesionalmente."
+            placeholder="Escribe algunas palabras clave (ej. 'analista de datos, egresado, trabajo en equipo') y deja que la IA lo redacte por ti."
           />
         </div>
+
+        {errorIa && (
+          <p className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{errorIa}</p>
+        )}
 
         <div>
           <label className={labelClass}>Habilidades * (separadas por coma)</label>
@@ -219,8 +306,8 @@ export default function StepPerfil({ perfil, onChange, onNext }: Props) {
                 </div>
                 <textarea
                   className={`${inputClass} mt-2`}
-                  rows={2}
-                  placeholder="Describe tus responsabilidades y logros"
+                  rows={3}
+                  placeholder={"Escribe una idea por línea, aunque sean solo palabras clave. Ej:\ncoordinación de transporte\ntrabajé en ventas de transporte"}
                   value={exp.descripcion}
                   onChange={(e) => {
                     const next = [...perfil.experiencia];
@@ -228,15 +315,30 @@ export default function StepPerfil({ perfil, onChange, onNext }: Props) {
                     update("experiencia", next);
                   }}
                 />
-                <button
-                  type="button"
-                  onClick={() =>
-                    update("experiencia", perfil.experiencia.filter((_, idx) => idx !== i))
-                  }
-                  className="mt-2 flex items-center gap-1 text-xs text-red-500 hover:text-red-600"
-                >
-                  <Trash2 size={12} /> Eliminar
-                </button>
+                <div className="mt-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => handleMejorarExperiencia(exp.id)}
+                    disabled={mejorandoExperienciaId === exp.id || !exp.descripcion.trim()}
+                    className={aiButtonClass}
+                  >
+                    {mejorandoExperienciaId === exp.id ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Sparkles size={14} />
+                    )}
+                    Mejorar con IA
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      update("experiencia", perfil.experiencia.filter((_, idx) => idx !== i))
+                    }
+                    className="flex items-center gap-1 text-xs text-red-500 hover:text-red-600"
+                  >
+                    <Trash2 size={12} /> Eliminar
+                  </button>
+                </div>
               </div>
             ))}
           </div>

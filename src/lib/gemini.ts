@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { MatchResult, PerfilEgresado } from "./types";
+import type { EducationItem, ExperienceItem, MatchResult, PerfilEgresado } from "./types";
 
 const SYSTEM_PROMPT = `Rol: Reclutador Senior y Experto en Sistemas ATS.
 Tarea: Recibes el perfil de un egresado/estudiante y el texto de una vacante laboral. Debes analizar la compatibilidad entre ambos como lo haría un sistema ATS real, y devolver EXCLUSIVAMENTE un objeto JSON válido (sin markdown, sin backticks, sin texto adicional) con esta forma exacta:
@@ -93,5 +93,101 @@ export async function analizarMatch(perfil: PerfilEgresado, vacante: string): Pr
   } catch (error) {
     console.error("Error al llamar a Gemini, usando resultado de respaldo:", error);
     return fallbackResult(perfil, vacante);
+  }
+}
+
+const EXPERIENCIA_SYSTEM_PROMPT = `Rol: Redactor experto en CVs optimizados para sistemas ATS.
+Recibes el puesto, la empresa y líneas breves o palabras clave escritas por el candidato sobre sus responsabilidades o logros en ese trabajo.
+Debes reescribir CADA línea de entrada como una viñeta profesional completa: inicia con verbo de acción en pasado, sé específico, usa palabras clave relevantes al puesto, y transmite impacto real. No inventes cifras exactas ni logros falsos si no se dieron datos; puedes usar términos cualitativos de impacto (ej. "optimizando tiempos de entrega") en vez de números inventados.
+Devuelve EXCLUSIVAMENTE un JSON válido (sin markdown, sin backticks) con esta forma:
+{ "bullets": string[] }
+Debes devolver exactamente una viñeta por cada línea no vacía que te dieron, en el mismo orden.`;
+
+function fallbackBullet(line: string): string {
+  const trimmed = line.trim().replace(/^[•\-*]\s*/, "");
+  if (!trimmed) return "";
+  const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  return `${capitalized}, aportando organización, atención al detalle y trabajo en equipo a los resultados del área.`;
+}
+
+function fallbackMejorarExperiencia(texto: string): string {
+  return texto
+    .split("\n")
+    .map((line) => fallbackBullet(line))
+    .filter(Boolean)
+    .join("\n");
+}
+
+export async function mejorarExperiencia(
+  puesto: string,
+  empresa: string,
+  texto: string
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || !texto.trim()) {
+    return fallbackMejorarExperiencia(texto);
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      systemInstruction: EXPERIENCIA_SYSTEM_PROMPT,
+    });
+
+    const prompt = `Puesto: ${puesto || "(sin especificar)"}\nEmpresa: ${empresa || "(sin especificar)"}\nLíneas del candidato:\n${texto}`;
+    const result = await model.generateContent(prompt);
+    const parsed = extractJson(result.response.text()) as { bullets: string[] };
+    return parsed.bullets.join("\n");
+  } catch (error) {
+    console.error("Error al mejorar experiencia con Gemini, usando respaldo:", error);
+    return fallbackMejorarExperiencia(texto);
+  }
+}
+
+const RESUMEN_SYSTEM_PROMPT = `Rol: Redactor experto en CVs optimizados para sistemas ATS.
+Recibes datos de un candidato (habilidades, educación, experiencia y un resumen borrador que puede ser solo palabras clave o una frase corta).
+Debes redactar un resumen profesional robusto de 2 a 3 líneas, en tono profesional, con verbos de acción, destacando fortalezas reales del candidato según los datos dados. NO inventes títulos, empresas, años ni logros que no se mencionen en los datos.
+Devuelve EXCLUSIVAMENTE un JSON válido (sin markdown, sin backticks) con esta forma:
+{ "resumen": string }`;
+
+function fallbackMejorarResumen(
+  borrador: string,
+  habilidades: string[],
+  educacion: EducationItem[]
+): string {
+  const habilidadesTexto = habilidades.slice(0, 4).join(", ");
+  const educacionTexto = educacion[0]?.titulo || "su formación académica";
+  const base = borrador.trim() || "Recién egresado con disposición para aportar valor desde el primer día";
+  return `${base}. Cuenta con formación en ${educacionTexto}${
+    habilidadesTexto ? ` y habilidades en ${habilidadesTexto}` : ""
+  }, con actitud proactiva y capacidad de aprendizaje rápido.`;
+}
+
+export async function mejorarResumen(
+  borrador: string,
+  habilidades: string[],
+  educacion: EducationItem[],
+  experiencia: ExperienceItem[]
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return fallbackMejorarResumen(borrador, habilidades, educacion);
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      systemInstruction: RESUMEN_SYSTEM_PROMPT,
+    });
+
+    const prompt = `Resumen borrador del candidato: "${borrador || "(vacío, sin pistas)"}"\nHabilidades: ${habilidades.join(", ") || "(ninguna)"}\nEducación: ${JSON.stringify(educacion)}\nExperiencia: ${JSON.stringify(experiencia)}`;
+    const result = await model.generateContent(prompt);
+    const parsed = extractJson(result.response.text()) as { resumen: string };
+    return parsed.resumen;
+  } catch (error) {
+    console.error("Error al mejorar resumen con Gemini, usando respaldo:", error);
+    return fallbackMejorarResumen(borrador, habilidades, educacion);
   }
 }
