@@ -103,11 +103,19 @@ Devuelve EXCLUSIVAMENTE un JSON válido (sin markdown, sin backticks) con esta f
 { "bullets": string[] }
 Debes devolver exactamente una viñeta por cada línea no vacía que te dieron, en el mismo orden.`;
 
+const RESPALDO_MARCADOR = "aportando organización";
+
 function fallbackBullet(line: string): string {
   const trimmed = line.trim().replace(/^[•\-*]\s*/, "");
   if (!trimmed) return "";
   const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-  return `${capitalized}, aportando organización, atención al detalle y trabajo en equipo a los resultados del área.`;
+
+  if (capitalized.toLowerCase().includes(RESPALDO_MARCADOR)) {
+    return capitalized.endsWith(".") ? capitalized : `${capitalized}.`;
+  }
+
+  const sinPunto = capitalized.replace(/\.+$/, "");
+  return `${sinPunto}, ${RESPALDO_MARCADOR}, atención al detalle y trabajo en equipo a los resultados del área.`;
 }
 
 function fallbackMejorarExperiencia(texto: string): string {
@@ -151,17 +159,38 @@ Debes redactar un resumen profesional robusto de 2 a 3 líneas, en tono profesio
 Devuelve EXCLUSIVAMENTE un JSON válido (sin markdown, sin backticks) con esta forma:
 { "resumen": string }`;
 
+const RESPALDO_ACTITUD = "actitud proactiva y capacidad de aprendizaje rápido";
+
 function fallbackMejorarResumen(
   borrador: string,
   habilidades: string[],
   educacion: EducationItem[]
 ): string {
-  const habilidadesTexto = habilidades.slice(0, 4).join(", ");
-  const educacionTexto = educacion[0]?.titulo || "su formación académica";
-  const base = borrador.trim() || "Recién egresado con disposición para aportar valor desde el primer día";
-  return `${base}. Cuenta con formación en ${educacionTexto}${
-    habilidadesTexto ? ` y habilidades en ${habilidadesTexto}` : ""
-  }, con actitud proactiva y capacidad de aprendizaje rápido.`;
+  let base = borrador.trim() || "Recién egresado con disposición para aportar valor desde el primer día";
+  base = base.charAt(0).toUpperCase() + base.slice(1).replace(/\.+$/, "");
+  base = `${base}.`;
+
+  const baseLower = base.toLowerCase();
+  const extras: string[] = [];
+
+  const educacionTitulo = educacion[0]?.titulo?.trim();
+  if (educacionTitulo && !baseLower.includes(educacionTitulo.toLowerCase())) {
+    extras.push(`formación en ${educacionTitulo}`);
+  }
+
+  const habilidadesFaltantes = habilidades
+    .slice(0, 4)
+    .filter((h) => h.trim() && !baseLower.includes(h.toLowerCase()));
+  if (habilidadesFaltantes.length > 0) {
+    extras.push(`habilidades en ${habilidadesFaltantes.join(", ")}`);
+  }
+
+  if (!baseLower.includes("actitud proactiva")) {
+    extras.push(RESPALDO_ACTITUD);
+  }
+
+  if (extras.length === 0) return base;
+  return `${base} Cuenta con ${extras.join(" y ")}.`;
 }
 
 export async function mejorarResumen(
