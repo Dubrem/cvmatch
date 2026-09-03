@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { X, Copy, Check, Loader2, Landmark } from "lucide-react";
-import { DATOS_BANCARIOS, DESCARGAS_PAQUETE, CORREO_COMPROBANTES } from "@/lib/config";
+import { X, Copy, Check, Loader2, Landmark, MessageCircle } from "lucide-react";
+import { DATOS_BANCARIOS, DESCARGAS_PAQUETE, WHATSAPP_LINK_COMPROBANTES } from "@/lib/config";
 
 interface Props {
   onClose: () => void;
@@ -118,11 +118,6 @@ export default function TransferenciaModal({ onClose }: Props) {
                 {enviando && <Loader2 size={16} className="animate-spin" />}
                 Ya hice la transferencia
               </button>
-              <p className="mt-3 text-center text-xs text-muted">
-                Envía tu comprobante a{" "}
-                <span className="font-medium text-navy">{CORREO_COMPROBANTES}</span>. En cuanto lo
-                confirmemos, activaremos tus {DESCARGAS_PAQUETE} descargas.
-              </p>
               <p className="mt-2 text-center text-xs text-muted">
                 ¿Aún no tienes cuenta?{" "}
                 <Link href="/cuenta/registro" className="font-semibold text-cyan hover:text-cyan-light">
@@ -139,9 +134,19 @@ export default function TransferenciaModal({ onClose }: Props) {
             </span>
             <p className="font-semibold text-navy">¡Solicitud registrada!</p>
             <p className="mt-1 text-sm text-muted">
-              En cuanto confirmemos tu transferencia, activaremos tus {DESCARGAS_PAQUETE} descargas
-              en la cuenta de <span className="font-medium text-navy">{email}</span>.
+              Ahora envíanos tu comprobante por WhatsApp para confirmar más rápido. En cuanto lo
+              validemos, activaremos tus {DESCARGAS_PAQUETE} descargas en la cuenta de{" "}
+              <span className="font-medium text-navy">{email}</span>.
             </p>
+            <a
+              href={WHATSAPP_LINK_COMPROBANTES}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-mint py-3 text-sm font-semibold text-white transition hover:bg-mint-light"
+            >
+              <MessageCircle size={16} />
+              Enviar comprobante por WhatsApp
+            </a>
           </div>
         )}
       </div>
