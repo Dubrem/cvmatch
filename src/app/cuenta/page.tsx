@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Download,
+  Eye,
   FileText,
   LogOut,
   Loader2,
@@ -13,10 +14,12 @@ import {
   CheckCircle2,
   Clock,
   MessageCircle,
+  FilePlus2,
 } from "lucide-react";
 import { generarCvPdf } from "@/lib/pdf";
 import { construirLinkWhatsApp } from "@/lib/config";
 import TransferenciaModal from "@/components/TransferenciaModal";
+import CvPreviewModal from "@/components/CvPreviewModal";
 import type { MatchResult, PerfilEgresado } from "@/lib/types";
 
 interface CvGuardado {
@@ -47,6 +50,7 @@ export default function CuentaPage() {
   const [loading, setLoading] = useState(true);
   const [descargandoId, setDescargandoId] = useState<number | null>(null);
   const [mostrarTransferencia, setMostrarTransferencia] = useState(false);
+  const [previsualizando, setPrevisualizando] = useState<CvGuardado | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const cargar = async () => {
@@ -189,9 +193,17 @@ export default function CuentaPage() {
           </>
         )}
 
-        <h2 className="mt-8 text-sm font-bold uppercase tracking-wide text-muted">
-          Tus CVs generados
-        </h2>
+        <div className="mt-8 flex items-center justify-between">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-muted">
+            Tus CVs generados
+          </h2>
+          <Link
+            href="/analisis"
+            className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-navy-light transition hover:bg-slate-50"
+          >
+            <FilePlus2 size={16} /> Crear nuevo CV
+          </Link>
+        </div>
 
         {cuenta.cvs.length === 0 ? (
           <div className="card-shadow mt-3 rounded-2xl border border-border bg-surface p-8 text-center">
@@ -219,18 +231,26 @@ export default function CuentaPage() {
                     {new Date(cv.fecha).toLocaleString("es-MX")}
                   </p>
                 </div>
-                <button
-                  onClick={() => handleDescargar(cv)}
-                  disabled={cuenta.creditos === 0 || descargandoId === cv.id}
-                  className="flex items-center gap-2 rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {descargandoId === cv.id ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Download size={16} />
-                  )}
-                  Descargar
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPrevisualizando(cv)}
+                    className="flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-navy-light transition hover:bg-slate-50"
+                  >
+                    <Eye size={16} /> Visualizar
+                  </button>
+                  <button
+                    onClick={() => handleDescargar(cv)}
+                    disabled={cuenta.creditos === 0 || descargandoId === cv.id}
+                    className="flex items-center gap-2 rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {descargandoId === cv.id ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Download size={16} />
+                    )}
+                    Descargar
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -243,6 +263,14 @@ export default function CuentaPage() {
             setMostrarTransferencia(false);
             cargar();
           }}
+        />
+      )}
+
+      {previsualizando && (
+        <CvPreviewModal
+          perfil={previsualizando.perfil}
+          resultado={previsualizando.resultado}
+          onClose={() => setPrevisualizando(null)}
         />
       )}
     </div>
