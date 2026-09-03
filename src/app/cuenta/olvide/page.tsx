@@ -66,7 +66,7 @@ export default function OlvidePage() {
                   className={inputClass}
                   value={telefono}
                   onChange={(e) => setTelefono(e.target.value)}
-                  placeholder="442 105 2174"
+                  placeholder="55 1234 5678"
                   required
                 />
               </div>
