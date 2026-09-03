@@ -1,17 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { X, Copy, Check, Loader2, Landmark } from "lucide-react";
-import { DATOS_BANCARIOS, DESCARGAS_PAQUETE, CORREO_COMPROBANTES } from "@/lib/config";
+import { X, Copy, Check, Loader2, HeartHandshake } from "lucide-react";
+import { DATOS_BANCARIOS, CORREO_COMPROBANTES } from "@/lib/config";
 
 interface Props {
   onClose: () => void;
 }
 
-export default function TransferenciaModal({ onClose }: Props) {
+export default function DonacionModal({ onClose }: Props) {
   const [copiado, setCopiado] = useState(false);
-  const [email, setEmail] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [correo, setCorreo] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,14 +27,14 @@ export default function TransferenciaModal({ onClose }: Props) {
     setError(null);
     setEnviando(true);
     try {
-      const res = await fetch("/api/transferencia", {
+      const res = await fetch("/api/donante", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ nombre, correo }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "No se pudo registrar tu solicitud.");
+        setError(data.error ?? "No se pudo registrar tu donativo.");
         return;
       }
       setEnviado(true);
@@ -57,12 +57,12 @@ export default function TransferenciaModal({ onClose }: Props) {
         </button>
 
         <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan/10 text-cyan">
-            <Landmark size={22} />
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-mint/10 text-mint">
+            <HeartHandshake size={22} />
           </span>
           <div>
-            <h3 className="font-bold text-navy">Pago por transferencia</h3>
-            <p className="text-xs text-muted">Paquete de {DESCARGAS_PAQUETE} descargas — $49 MXN</p>
+            <h3 className="font-bold text-navy">Haz una donación</h3>
+            <p className="text-xs text-muted">Ayuda a otro egresado a conseguir su primer empleo.</p>
           </div>
         </div>
 
@@ -80,7 +80,7 @@ export default function TransferenciaModal({ onClose }: Props) {
                   <button
                     type="button"
                     onClick={copiarClabe}
-                    className="text-cyan hover:text-cyan-light"
+                    className="text-mint hover:text-mint-light"
                     aria-label="Copiar CLABE"
                   >
                     {copiado ? <Check size={16} /> : <Copy size={16} />}
@@ -93,42 +93,43 @@ export default function TransferenciaModal({ onClose }: Props) {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted">Monto</span>
-                <span className="font-semibold text-navy">$49.00 MXN</span>
+                <span className="font-semibold text-navy">El que gustes aportar</span>
               </div>
             </div>
 
             <form onSubmit={handleSubmit} className="mt-5">
-              <label className="mb-1.5 block text-sm font-medium text-navy-light">
-                Correo con el que te registraste (o vas a registrarte)
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="tucorreo@ejemplo.com"
-                className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
-              />
+              <p className="mb-3 text-sm font-medium text-navy-light">
+                ¿Quieres registrarte como donante? Déjanos tus datos:
+              </p>
+              <div className="space-y-3">
+                <input
+                  required
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Tu nombre"
+                  className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-mint focus:outline-none focus:ring-2 focus:ring-mint/20"
+                />
+                <input
+                  type="email"
+                  required
+                  value={correo}
+                  onChange={(e) => setCorreo(e.target.value)}
+                  placeholder="tucorreo@ejemplo.com"
+                  className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-mint focus:outline-none focus:ring-2 focus:ring-mint/20"
+                />
+              </div>
               {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
               <button
                 type="submit"
                 disabled={enviando}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-navy py-3 text-sm font-semibold text-white transition hover:bg-navy-light disabled:opacity-60"
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-mint py-3 text-sm font-semibold text-white transition hover:bg-mint-light disabled:opacity-60"
               >
                 {enviando && <Loader2 size={16} className="animate-spin" />}
-                Ya hice la transferencia
+                Registrarme como donante
               </button>
               <p className="mt-3 text-center text-xs text-muted">
-                Envía tu comprobante a{" "}
-                <span className="font-medium text-navy">{CORREO_COMPROBANTES}</span>. En cuanto lo
-                confirmemos, activaremos tus {DESCARGAS_PAQUETE} descargas.
-              </p>
-              <p className="mt-2 text-center text-xs text-muted">
-                ¿Aún no tienes cuenta?{" "}
-                <Link href="/cuenta/registro" className="font-semibold text-cyan hover:text-cyan-light">
-                  Regístrate aquí
-                </Link>{" "}
-                con el mismo correo antes de que confirmemos tu pago.
+                También puedes escribirnos directo a{" "}
+                <span className="font-medium text-navy">{CORREO_COMPROBANTES}</span>.
               </p>
             </form>
           </>
@@ -137,10 +138,9 @@ export default function TransferenciaModal({ onClose }: Props) {
             <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-mint/10 text-mint">
               <Check size={24} />
             </span>
-            <p className="font-semibold text-navy">¡Solicitud registrada!</p>
+            <p className="font-semibold text-navy">¡Gracias por tu apoyo, {nombre}!</p>
             <p className="mt-1 text-sm text-muted">
-              En cuanto confirmemos tu transferencia, activaremos tus {DESCARGAS_PAQUETE} descargas
-              en la cuenta de <span className="font-medium text-navy">{email}</span>.
+              Registramos tus datos. En cuanto veamos tu depósito, te contactaremos a {correo}.
             </p>
           </div>
         )}

@@ -11,8 +11,9 @@ Tarea: Recibes el perfil de un egresado/estudiante y el texto de una vacante lab
   "optimized_cv_content": {
     "resumen_ejecutivo": string (2-3 líneas, en primera persona implícita, con verbos de acción),
     "experiencia": [{ "titulo": string, "bullets": string[] (redactados con verbos de acción y palabras clave de la vacante) }],
-    "habilidades_destacadas": string[],
-    "educacion": string[]
+    "habilidades_destacadas": string[] (IMPORTANTE: cada elemento del arreglo debe ser UNA sola habilidad, nunca una lista de varias habilidades separadas por comas dentro del mismo string),
+    "educacion": string[],
+    "idiomas": string[] (cada elemento como "Inglés — Avanzado"; arreglo vacío si el candidato no reportó idiomas)
   },
   "vacantes_sugeridas": [{ "titulo": string, "empresa": string, "ubicacion": string }] (3 vacantes similares plausibles para la zona/industria del candidato)
 }
@@ -29,6 +30,14 @@ function extractJson(text: string): unknown {
   const end = cleaned.lastIndexOf("}");
   if (start === -1 || end === -1) throw new Error("No se encontró JSON en la respuesta del modelo");
   return JSON.parse(cleaned.slice(start, end + 1));
+}
+
+function normalizarLista(items: string[] | undefined | null): string[] {
+  if (!Array.isArray(items)) return [];
+  return items
+    .flatMap((item) => (typeof item === "string" ? item.split(",") : []))
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function esErrorTransitorio(error: unknown): boolean {
@@ -82,6 +91,7 @@ function fallbackResult(perfil: PerfilEgresado, vacante: string): MatchResult {
       })),
       habilidades_destacadas: perfil.habilidades,
       educacion: perfil.educacion.map((e) => `${e.titulo} — ${e.institucion} (${e.periodo})`),
+      idiomas: perfil.idiomas.map((i) => `${i.idioma} — ${i.nivel}`),
     },
     vacantes_sugeridas: [
       { titulo: "Analista Junior", empresa: "Empresa Local S.A.", ubicacion: perfil.ciudad || "Tu ciudad" },
@@ -108,6 +118,13 @@ export async function analizarMatch(perfil: PerfilEgresado, vacante: string): Pr
     const result = await conReintentos(() => model.generateContent(buildUserPrompt(perfil, vacante)));
     const text = result.response.text();
     const parsed = extractJson(text) as MatchResult;
+
+    parsed.optimized_cv_content.habilidades_destacadas = normalizarLista(
+      parsed.optimized_cv_content.habilidades_destacadas
+    );
+    parsed.optimized_cv_content.educacion = normalizarLista(parsed.optimized_cv_content.educacion);
+    parsed.optimized_cv_content.idiomas = normalizarLista(parsed.optimized_cv_content.idiomas);
+
     return parsed;
   } catch (error) {
     console.error("Error al llamar a Gemini, usando resultado de respaldo:", error);

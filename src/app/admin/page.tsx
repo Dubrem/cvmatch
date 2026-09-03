@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, DollarSign, ShoppingBag, Lock, Loader2 } from "lucide-react";
+import { Eye, DollarSign, ShoppingBag, Lock, Loader2, CheckCircle2 } from "lucide-react";
 import type { EstadisticasAdmin } from "@/lib/db";
 
 export default function AdminPage() {
@@ -10,6 +10,8 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [aprobandoId, setAprobandoId] = useState<number | null>(null);
+  const [mensajeAprobacion, setMensajeAprobacion] = useState<string | null>(null);
 
   const cargarStats = async () => {
     setLoading(true);
@@ -115,6 +117,25 @@ export default function AdminPage() {
     );
   }
 
+  const handleAprobar = async (id: number) => {
+    setAprobandoId(id);
+    setMensajeAprobacion(null);
+    try {
+      const res = await fetch("/api/admin/aprobar-transferencia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      setMensajeAprobacion(data.mensaje ?? data.error ?? "Listo.");
+      await cargarStats();
+    } catch {
+      setMensajeAprobacion("Error de conexión al aprobar.");
+    } finally {
+      setAprobandoId(null);
+    }
+  };
+
   if (!stats) return null;
 
   const maxVisitas = Math.max(1, ...stats.visitasUltimos7Dias.map((d) => d.visitas));
@@ -207,6 +228,11 @@ export default function AdminPage() {
           <h2 className="border-b border-border px-6 py-4 text-sm font-bold text-navy">
             Solicitudes de transferencia por confirmar
           </h2>
+          {mensajeAprobacion && (
+            <p className="border-b border-border bg-cyan/5 px-6 py-3 text-sm text-navy">
+              {mensajeAprobacion}
+            </p>
+          )}
           {stats.solicitudesTransferencia.length === 0 ? (
             <p className="px-6 py-6 text-sm text-muted">No hay solicitudes pendientes.</p>
           ) : (
@@ -215,15 +241,24 @@ export default function AdminPage() {
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase text-muted">
                     <th className="px-6 py-3">Correo</th>
+                    <th className="px-6 py-3">Cuenta</th>
                     <th className="px-6 py-3">Fecha</th>
                     <th className="px-6 py-3">Monto</th>
                     <th className="px-6 py-3">Estado</th>
+                    <th className="px-6 py-3"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {stats.solicitudesTransferencia.map((s, i) => (
-                    <tr key={i} className="border-b border-border last:border-0">
+                  {stats.solicitudesTransferencia.map((s) => (
+                    <tr key={s.id} className="border-b border-border last:border-0">
                       <td className="px-6 py-3 text-navy">{s.email}</td>
+                      <td className="px-6 py-3">
+                        {s.tieneCuenta ? (
+                          <span className="text-xs font-semibold text-mint">Registrada</span>
+                        ) : (
+                          <span className="text-xs font-semibold text-amber-600">Sin cuenta</span>
+                        )}
+                      </td>
                       <td className="px-6 py-3 text-muted">
                         {new Date(s.fecha).toLocaleString("es-MX")}
                       </td>
@@ -240,6 +275,54 @@ export default function AdminPage() {
                         >
                           {s.confirmada ? "Confirmada" : "Pendiente"}
                         </span>
+                      </td>
+                      <td className="px-6 py-3">
+                        {!s.confirmada && (
+                          <button
+                            onClick={() => handleAprobar(s.id)}
+                            disabled={aprobandoId === s.id}
+                            className="flex items-center gap-1.5 rounded-lg bg-navy px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-navy-light disabled:opacity-50"
+                          >
+                            {aprobandoId === s.id ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <CheckCircle2 size={13} />
+                            )}
+                            Aprobar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="card-shadow mt-6 overflow-hidden rounded-2xl border border-border bg-surface">
+          <h2 className="border-b border-border px-6 py-4 text-sm font-bold text-navy">
+            Donantes registrados
+          </h2>
+          {stats.donantes.length === 0 ? (
+            <p className="px-6 py-6 text-sm text-muted">Nadie se ha registrado como donante.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs uppercase text-muted">
+                    <th className="px-6 py-3">Nombre</th>
+                    <th className="px-6 py-3">Correo</th>
+                    <th className="px-6 py-3">Fecha</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.donantes.map((d, i) => (
+                    <tr key={i} className="border-b border-border last:border-0">
+                      <td className="px-6 py-3 text-navy">{d.nombre}</td>
+                      <td className="px-6 py-3 text-muted">{d.correo}</td>
+                      <td className="px-6 py-3 text-muted">
+                        {new Date(d.fecha).toLocaleString("es-MX")}
                       </td>
                     </tr>
                   ))}

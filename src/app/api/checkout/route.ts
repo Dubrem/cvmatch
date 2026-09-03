@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { DESCARGAS_PAQUETE, PRECIO_PAQUETE_CENTAVOS } from "@/lib/config";
+
+const PAGO_TARJETA_HABILITADO = false;
 
 export async function POST(req: NextRequest) {
+  if (!PAGO_TARJETA_HABILITADO) {
+    return NextResponse.json(
+      { error: "El pago con tarjeta está deshabilitado temporalmente. Usa transferencia bancaria." },
+      { status: 501 }
+    );
+  }
+
   const secretKey = process.env.STRIPE_SECRET_KEY;
 
   if (!secretKey) {
@@ -26,10 +36,10 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: "mxn",
             product_data: {
-              name: "Paquete de 10 descargas de CV optimizado ATS",
-              description: "10 adaptaciones de CV en PDF listas para pasar filtros ATS.",
+              name: `Paquete de ${DESCARGAS_PAQUETE} descargas de CV optimizado ATS`,
+              description: `${DESCARGAS_PAQUETE} adaptaciones de CV en PDF listas para pasar filtros ATS.`,
             },
-            unit_amount: 9900,
+            unit_amount: PRECIO_PAQUETE_CENTAVOS,
           },
           quantity: 1,
         },

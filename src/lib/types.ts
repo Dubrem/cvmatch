@@ -13,6 +13,12 @@ export interface EducationItem {
   periodo: string;
 }
 
+export interface LanguageItem {
+  id: string;
+  idioma: string;
+  nivel: string;
+}
+
 export interface PerfilEgresado {
   nombre: string;
   email: string;
@@ -22,6 +28,7 @@ export interface PerfilEgresado {
   habilidades: string[];
   educacion: EducationItem[];
   experiencia: ExperienceItem[];
+  idiomas: LanguageItem[];
   proyectos: string;
 }
 
@@ -34,6 +41,7 @@ export interface MatchResult {
     experiencia: { titulo: string; bullets: string[] }[];
     habilidades_destacadas: string[];
     educacion: string[];
+    idiomas: string[];
   };
   vacantes_sugeridas: { titulo: string; empresa: string; ubicacion: string }[];
 }

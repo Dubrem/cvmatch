@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CheckCircle2,
@@ -9,10 +9,11 @@ import {
   Download,
   RotateCcw,
   Lock,
+  Loader2,
+  LogIn,
 } from "lucide-react";
 import type { MatchResult, PerfilEgresado } from "@/lib/types";
 import { generarCvPdf } from "@/lib/pdf";
-import { useDownloadCredits } from "@/lib/useDownloadCredits";
 
 interface Props {
   perfil: PerfilEgresado;
@@ -27,19 +28,45 @@ function scoreColor(pct: number) {
 }
 
 export default function StepResultados({ perfil, resultado, onRestart }: Props) {
-  const { credits, consumeCredit } = useDownloadCredits();
+  const [cargandoSesion, setCargandoSesion] = useState(true);
+  const [autenticado, setAutenticado] = useState(false);
+  const [creditos, setCreditos] = useState(0);
   const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const color = scoreColor(resultado.match_percentage);
   const circumference = 2 * Math.PI * 54;
   const offset = circumference - (resultado.match_percentage / 100) * circumference;
 
-  const handleDownload = () => {
-    if (credits <= 0) return;
+  useEffect(() => {
+    fetch("/api/cuenta/me")
+      .then(async (res) => {
+        if (!res.ok) {
+          setAutenticado(false);
+          return;
+        }
+        const data = await res.json();
+        setAutenticado(true);
+        setCreditos(data.creditos ?? 0);
+      })
+      .catch(() => setAutenticado(false))
+      .finally(() => setCargandoSesion(false));
+  }, []);
+
+  const handleDownload = async () => {
+    setError(null);
     setDownloading(true);
     try {
+      const res = await fetch("/api/cuenta/descargar", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "No se pudo descargar.");
+        return;
+      }
       const doc = generarCvPdf(perfil, resultado);
       doc.save(`CV-${perfil.nombre.replace(/\s+/g, "_") || "optimizado"}.pdf`);
-      consumeCredit();
+      setCreditos((c) => c - 1);
+    } catch {
+      setError("Error de conexión. Intenta de nuevo.");
     } finally {
       setDownloading(false);
     }
@@ -129,13 +156,32 @@ export default function StepResultados({ perfil, resultado, onRestart }: Props) 
                 <h3 className="font-bold text-navy">Vista previa del CV optimizado</h3>
                 <p className="text-xs text-muted">Formato de una columna, listo para sistemas ATS.</p>
               </div>
-              {credits > 0 ? (
+
+              {cargandoSesion ? (
+                <Loader2 size={18} className="animate-spin text-muted" />
+              ) : !autenticado ? (
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/cuenta/login"
+                    className="flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-navy-light transition hover:bg-slate-50"
+                  >
+                    <LogIn size={16} /> Iniciar sesión
+                  </Link>
+                  <Link
+                    href="/cuenta/registro"
+                    className="flex items-center gap-2 rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-light"
+                  >
+                    Crear cuenta
+                  </Link>
+                </div>
+              ) : creditos > 0 ? (
                 <button
                   onClick={handleDownload}
                   disabled={downloading}
                   className="flex items-center gap-2 rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-light disabled:opacity-50"
                 >
-                  <Download size={16} /> Descargar PDF ({credits} disp.)
+                  {downloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                  Descargar PDF ({creditos} disp.)
                 </button>
               ) : (
                 <Link
@@ -146,6 +192,8 @@ export default function StepResultados({ perfil, resultado, onRestart }: Props) 
                 </Link>
               )}
             </div>
+
+            {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
             <div className="space-y-6 text-navy">
               <div>
@@ -188,9 +236,13 @@ export default function StepResultados({ perfil, resultado, onRestart }: Props) 
                 <h5 className="border-b border-border pb-1 text-xs font-bold uppercase tracking-wide text-cyan">
                   Habilidades destacadas
                 </h5>
-                <p className="mt-2 text-sm text-navy-light">
-                  {resultado.optimized_cv_content.habilidades_destacadas.join("  •  ")}
-                </p>
+                <ul className="mt-2 space-y-1">
+                  {resultado.optimized_cv_content.habilidades_destacadas.map((h, i) => (
+                    <li key={i} className="text-sm text-navy-light">
+                      • {h}
+                    </li>
+                  ))}
+                </ul>
               </div>
 
               <div>
@@ -205,6 +257,21 @@ export default function StepResultados({ perfil, resultado, onRestart }: Props) 
                   ))}
                 </ul>
               </div>
+
+              {resultado.optimized_cv_content.idiomas.length > 0 && (
+                <div>
+                  <h5 className="border-b border-border pb-1 text-xs font-bold uppercase tracking-wide text-cyan">
+                    Idiomas
+                  </h5>
+                  <ul className="mt-2 space-y-1">
+                    {resultado.optimized_cv_content.idiomas.map((idi, i) => (
+                      <li key={i} className="text-sm text-navy-light">
+                        • {idi}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
 

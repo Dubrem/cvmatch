@@ -9,6 +9,7 @@ import StepPerfil from "@/components/wizard/StepPerfil";
 import StepVacante from "@/components/wizard/StepVacante";
 import StepResultados from "@/components/wizard/StepResultados";
 import { useDownloadCredits } from "@/lib/useDownloadCredits";
+import { DESCARGAS_PAQUETE } from "@/lib/config";
 import type { MatchResult, PerfilEgresado } from "@/lib/types";
 
 const PERFIL_INICIAL: PerfilEgresado = {
@@ -20,6 +21,7 @@ const PERFIL_INICIAL: PerfilEgresado = {
   habilidades: [],
   educacion: [],
   experiencia: [],
+  idiomas: [],
   proyectos: "",
 };
 
@@ -30,7 +32,7 @@ function PagoConfirmado() {
 
   useEffect(() => {
     if (searchParams.get("pago") === "exitoso") {
-      addCredits(10);
+      addCredits(DESCARGAS_PAQUETE);
       router.replace("/analisis");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,6 +65,12 @@ export default function AnalisisPage() {
       }
       setResultado(data as MatchResult);
       setStep(3);
+
+      fetch("/api/cvs/guardar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ perfil, resultado: data }),
+      }).catch(() => {});
     } catch {
       setError("Ocurrió un error de conexión. Intenta de nuevo.");
     } finally {

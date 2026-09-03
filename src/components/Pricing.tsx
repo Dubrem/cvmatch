@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Loader2, Landmark } from "lucide-react";
+import { Check, Landmark, CreditCard } from "lucide-react";
 import TransferenciaModal from "./TransferenciaModal";
+import { DESCARGAS_PAQUETE } from "@/lib/config";
 
 const FEATURES = [
-  "10 descargas o adaptaciones de CV en PDF",
+  `${DESCARGAS_PAQUETE} descargas o adaptaciones de CV en PDF`,
   "Optimización automática para filtros ATS",
   "Palabras clave alineadas a cada vacante",
   "Vigencia de 90 días para usar tus descargas",
@@ -13,36 +14,7 @@ const FEATURES = [
 ];
 
 export default function Pricing() {
-  const [loading, setLoading] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
   const [mostrarTransferencia, setMostrarTransferencia] = useState(false);
-
-  const handleCheckout = async () => {
-    setLoading(true);
-    setNotice(null);
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ origin: window.location.origin }),
-      });
-      const data = await res.json();
-
-      if (res.ok && data.url) {
-        window.location.href = data.url;
-        return;
-      }
-
-      setNotice(
-        data.error ??
-          "La pasarela de pago aún no está configurada en este entorno."
-      );
-    } catch {
-      setNotice("Ocurrió un error al iniciar el pago. Intenta de nuevo.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <section id="precios" className="bg-navy/[0.03] py-20">
@@ -82,9 +54,9 @@ export default function Pricing() {
             <span className="absolute -top-3 right-8 rounded-full bg-mint px-3 py-1 text-xs font-bold text-white">
               Más popular
             </span>
-            <h3 className="text-lg font-bold">Paquete de 10 descargas</h3>
+            <h3 className="text-lg font-bold">Paquete de {DESCARGAS_PAQUETE} descargas</h3>
             <p className="mt-2 text-4xl font-extrabold">
-              $99 <span className="text-lg font-medium text-slate-300">MXN</span>
+              $49 <span className="text-lg font-medium text-slate-300">MXN</span>
             </p>
             <p className="mt-1 text-sm text-slate-300">Pago único</p>
             <ul className="mt-6 space-y-3">
@@ -96,23 +68,20 @@ export default function Pricing() {
               ))}
             </ul>
             <button
-              onClick={handleCheckout}
-              disabled={loading}
-              className="mt-8 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan to-mint py-3.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              disabled
+              title="Pago con tarjeta próximamente"
+              className="mt-8 flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-white/10 py-3.5 text-sm font-semibold text-white/50"
             >
-              {loading && <Loader2 size={16} className="animate-spin" />}
-              Pagar con tarjeta
+              <CreditCard size={16} />
+              Pagar con tarjeta (próximamente)
             </button>
             <button
               onClick={() => setMostrarTransferencia(true)}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-white/20 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan to-mint py-3.5 text-sm font-semibold text-white transition hover:opacity-90"
             >
               <Landmark size={16} />
               Pagar por transferencia
             </button>
-            {notice && (
-              <p className="mt-3 text-center text-xs text-amber-300">{notice}</p>
-            )}
           </div>
         </div>
       </div>

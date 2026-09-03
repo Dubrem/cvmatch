@@ -100,6 +100,10 @@ export default function StepPerfil({ perfil, onChange, onNext }: Props) {
     ]);
   };
 
+  const addIdioma = () => {
+    update("idiomas", [...perfil.idiomas, { id: crypto.randomUUID(), idioma: "", nivel: "" }]);
+  };
+
   const isValid =
     perfil.nombre.trim().length > 1 &&
     perfil.email.trim().length > 3 &&
@@ -249,6 +253,54 @@ export default function StepPerfil({ perfil, onChange, onNext }: Props) {
                   onClick={() =>
                     update("educacion", perfil.educacion.filter((_, idx) => idx !== i))
                   }
+                  className="mt-2 flex items-center gap-1 text-xs text-red-500 hover:text-red-600"
+                >
+                  <Trash2 size={12} /> Eliminar
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between">
+            <label className={labelClass}>Idiomas</label>
+            <button
+              type="button"
+              onClick={addIdioma}
+              className="flex items-center gap-1 text-xs font-semibold text-cyan hover:text-cyan-light"
+            >
+              <Plus size={14} /> Agregar
+            </button>
+          </div>
+          <div className="space-y-3">
+            {perfil.idiomas.map((idi, i) => (
+              <div key={idi.id} className="rounded-lg border border-border p-3">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <input
+                    className={inputClass}
+                    placeholder="Idioma (Inglés, Francés...)"
+                    value={idi.idioma}
+                    onChange={(e) => {
+                      const next = [...perfil.idiomas];
+                      next[i] = { ...idi, idioma: e.target.value };
+                      update("idiomas", next);
+                    }}
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Nivel (Básico, Intermedio, Avanzado, Nativo)"
+                    value={idi.nivel}
+                    onChange={(e) => {
+                      const next = [...perfil.idiomas];
+                      next[i] = { ...idi, nivel: e.target.value };
+                      update("idiomas", next);
+                    }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => update("idiomas", perfil.idiomas.filter((_, idx) => idx !== i))}
                   className="mt-2 flex items-center gap-1 text-xs text-red-500 hover:text-red-600"
                 >
                   <Trash2 size={12} /> Eliminar

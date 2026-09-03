@@ -19,8 +19,8 @@ export default function Hero() {
       />
       <div className="relative mx-auto max-w-7xl px-6 py-20 md:py-28">
         <div className="mx-auto max-w-3xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-cyan-light">
-            Optimiza tu CV con Inteligencia Artificial
+          <span className="block text-xl font-bold text-mint-light sm:text-2xl">
+            Ayudando a cumplir tus logros profesionales
           </span>
 
           <h1 className="mt-6 text-4xl font-extrabold leading-tight text-white md:text-6xl">

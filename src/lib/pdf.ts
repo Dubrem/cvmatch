@@ -67,12 +67,21 @@ export function generarCvPdf(perfil: PerfilEgresado, resultado: MatchResult): js
   });
 
   sectionTitle("Habilidades destacadas");
-  bodyText(resultado.optimized_cv_content.habilidades_destacadas.join("   •   "));
+  resultado.optimized_cv_content.habilidades_destacadas.forEach((h) => {
+    bodyText(`•  ${h}`, 10.5);
+  });
 
   sectionTitle("Educación");
   resultado.optimized_cv_content.educacion.forEach((edu) => {
     bodyText(edu, 10.5);
   });
+
+  if (resultado.optimized_cv_content.idiomas.length > 0) {
+    sectionTitle("Idiomas");
+    resultado.optimized_cv_content.idiomas.forEach((idi) => {
+      bodyText(`•  ${idi}`, 10.5);
+    });
+  }
 
   if (perfil.proyectos) {
     sectionTitle("Proyectos");
