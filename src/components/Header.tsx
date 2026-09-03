@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X, Sparkles } from "lucide-react";
+import { Menu, X, Sparkles, User } from "lucide-react";
 
 const NAV_LINKS = [
   { href: "#como-funciona", label: "Cómo funciona" },
@@ -35,7 +35,14 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden items-center gap-4 md:flex">
+          <Link
+            href="/cuenta"
+            className="flex items-center gap-1.5 text-sm font-medium text-muted transition hover:text-navy"
+          >
+            <User size={16} />
+            Mi cuenta
+          </Link>
           <Link
             href="/analisis"
             className="rounded-lg bg-navy px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-light"
@@ -67,8 +74,17 @@ export default function Header() {
               </a>
             ))}
             <Link
+              href="/cuenta"
+              className="flex items-center gap-1.5 text-sm font-medium text-muted"
+              onClick={() => setOpen(false)}
+            >
+              <User size={16} />
+              Mi cuenta
+            </Link>
+            <Link
               href="/analisis"
               className="mt-2 rounded-lg bg-navy px-5 py-2.5 text-center text-sm font-semibold text-white"
+              onClick={() => setOpen(false)}
             >
               Diagnóstico gratis
             </Link>
