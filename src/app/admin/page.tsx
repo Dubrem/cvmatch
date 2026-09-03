@@ -202,6 +202,52 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+
+        <div className="card-shadow mt-6 overflow-hidden rounded-2xl border border-border bg-surface">
+          <h2 className="border-b border-border px-6 py-4 text-sm font-bold text-navy">
+            Solicitudes de transferencia por confirmar
+          </h2>
+          {stats.solicitudesTransferencia.length === 0 ? (
+            <p className="px-6 py-6 text-sm text-muted">No hay solicitudes pendientes.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs uppercase text-muted">
+                    <th className="px-6 py-3">Correo</th>
+                    <th className="px-6 py-3">Fecha</th>
+                    <th className="px-6 py-3">Monto</th>
+                    <th className="px-6 py-3">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.solicitudesTransferencia.map((s, i) => (
+                    <tr key={i} className="border-b border-border last:border-0">
+                      <td className="px-6 py-3 text-navy">{s.email}</td>
+                      <td className="px-6 py-3 text-muted">
+                        {new Date(s.fecha).toLocaleString("es-MX")}
+                      </td>
+                      <td className="px-6 py-3 text-navy">
+                        ${(s.monto / 100).toLocaleString("es-MX")} MXN
+                      </td>
+                      <td className="px-6 py-3">
+                        <span
+                          className={
+                            s.confirmada
+                              ? "rounded-full bg-mint/10 px-2.5 py-1 text-xs font-semibold text-mint"
+                              : "rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-600"
+                          }
+                        >
+                          {s.confirmada ? "Confirmada" : "Pendiente"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

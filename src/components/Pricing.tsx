@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, Landmark } from "lucide-react";
+import TransferenciaModal from "./TransferenciaModal";
 
 const FEATURES = [
   "10 descargas o adaptaciones de CV en PDF",
@@ -14,6 +15,7 @@ const FEATURES = [
 export default function Pricing() {
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [mostrarTransferencia, setMostrarTransferencia] = useState(false);
 
   const handleCheckout = async () => {
     setLoading(true);
@@ -99,7 +101,14 @@ export default function Pricing() {
               className="mt-8 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan to-mint py-3.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
               {loading && <Loader2 size={16} className="animate-spin" />}
-              Comprar paquete
+              Pagar con tarjeta
+            </button>
+            <button
+              onClick={() => setMostrarTransferencia(true)}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-white/20 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+            >
+              <Landmark size={16} />
+              Pagar por transferencia
             </button>
             {notice && (
               <p className="mt-3 text-center text-xs text-amber-300">{notice}</p>
@@ -107,6 +116,10 @@ export default function Pricing() {
           </div>
         </div>
       </div>
+
+      {mostrarTransferencia && (
+        <TransferenciaModal onClose={() => setMostrarTransferencia(false)} />
+      )}
     </section>
   );
 }
