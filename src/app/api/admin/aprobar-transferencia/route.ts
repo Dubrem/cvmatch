@@ -9,11 +9,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const { id } = await req.json();
-    if (typeof id !== "number") {
+    const idNumerico = Number(id);
+    if (!Number.isFinite(idNumerico)) {
       return NextResponse.json({ error: "id inválido." }, { status: 400 });
     }
 
-    const resultado = await aprobarSolicitudTransferencia(id);
+    const resultado = await aprobarSolicitudTransferencia(idNumerico);
     return NextResponse.json(resultado);
   } catch (error) {
     console.error("Error al aprobar transferencia:", error);

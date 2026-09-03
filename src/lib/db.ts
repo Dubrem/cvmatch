@@ -1,5 +1,11 @@
-import { Pool } from "pg";
+import { Pool, types } from "pg";
 import { DESCARGAS_PAQUETE } from "./config";
+
+// Postgres devuelve BIGINT/BIGSERIAL (OID 20) como string por defecto para no
+// perder precisión en enteros de 64 bits. Nuestros ids nunca se acercan a ese
+// límite, así que los tratamos como number para evitar bugs de tipo en toda
+// la app (ej. comparaciones "typeof id === 'number'" en las rutas API).
+types.setTypeParser(20, (val: string) => parseInt(val, 10));
 
 let pool: Pool | null = null;
 let initialized: Promise<void> | null = null;
