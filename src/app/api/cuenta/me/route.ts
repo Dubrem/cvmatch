@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     nombre: usuario.nombre,
-    correo: usuario.correo,
+    telefono: usuario.telefono,
     creditos: usuario.creditos,
     cvs,
     solicitudes,

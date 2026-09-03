@@ -1,5 +1,5 @@
 import { Pool, types } from "pg";
-import { randomBytes } from "crypto";
+import { randomBytes, randomInt } from "crypto";
 import { DESCARGAS_PAQUETE } from "./config";
 
 // Postgres devuelve BIGINT/BIGSERIAL (OID 20) como string por defecto para no
@@ -46,22 +46,30 @@ async function ensureTables(): Promise<void> {
         CREATE TABLE IF NOT EXISTS usuarios (
           id BIGSERIAL PRIMARY KEY,
           nombre TEXT NOT NULL,
-          correo TEXT UNIQUE NOT NULL,
+          correo TEXT UNIQUE,
+          telefono TEXT,
           password_hash TEXT NOT NULL,
           creditos INTEGER NOT NULL DEFAULT 0,
           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         );
+        ALTER TABLE usuarios ALTER COLUMN correo DROP NOT NULL;
+        ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS telefono TEXT;
+        CREATE UNIQUE INDEX IF NOT EXISTS usuarios_telefono_idx
+          ON usuarios (telefono) WHERE telefono IS NOT NULL;
         CREATE TABLE IF NOT EXISTS solicitudes_transferencia (
           id BIGSERIAL PRIMARY KEY,
           usuario_id BIGINT REFERENCES usuarios(id) ON DELETE CASCADE,
-          email TEXT NOT NULL,
+          email TEXT,
+          telefono TEXT,
           codigo TEXT,
           monto INTEGER NOT NULL,
           confirmada BOOLEAN NOT NULL DEFAULT false,
           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         );
+        ALTER TABLE solicitudes_transferencia ALTER COLUMN email DROP NOT NULL;
         ALTER TABLE solicitudes_transferencia ADD COLUMN IF NOT EXISTS usuario_id BIGINT REFERENCES usuarios(id) ON DELETE CASCADE;
         ALTER TABLE solicitudes_transferencia ADD COLUMN IF NOT EXISTS codigo TEXT;
+        ALTER TABLE solicitudes_transferencia ADD COLUMN IF NOT EXISTS telefono TEXT;
         CREATE UNIQUE INDEX IF NOT EXISTS solicitudes_transferencia_codigo_idx
           ON solicitudes_transferencia (codigo) WHERE codigo IS NOT NULL;
         CREATE TABLE IF NOT EXISTS cvs_generados (
@@ -75,6 +83,13 @@ async function ensureTables(): Promise<void> {
           id BIGSERIAL PRIMARY KEY,
           nombre TEXT NOT NULL,
           correo TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS codigos_recuperacion (
+          id BIGSERIAL PRIMARY KEY,
+          usuario_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+          codigo TEXT NOT NULL,
+          usado BOOLEAN NOT NULL DEFAULT false,
           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         );
         `
@@ -112,7 +127,7 @@ export async function registrarDonante(nombre: string, correo: string): Promise<
 export interface Usuario {
   id: number;
   nombre: string;
-  correo: string;
+  telefono: string;
   passwordHash: string;
   creditos: number;
 }
@@ -120,39 +135,43 @@ export interface Usuario {
 function mapUsuario(r: {
   id: number;
   nombre: string;
-  correo: string;
+  telefono: string;
   password_hash: string;
   creditos: number;
 }): Usuario {
   return {
     id: r.id,
     nombre: r.nombre,
-    correo: r.correo,
+    telefono: r.telefono,
     passwordHash: r.password_hash,
     creditos: r.creditos,
   };
 }
 
+function normalizarTelefono(telefono: string): string {
+  return telefono.replace(/\D/g, "");
+}
+
 export async function crearUsuario(
   nombre: string,
-  correo: string,
+  telefono: string,
   passwordHash: string
 ): Promise<Usuario> {
   await ensureTables();
   const res = await getPool().query(
-    `INSERT INTO usuarios (nombre, correo, password_hash)
+    `INSERT INTO usuarios (nombre, telefono, password_hash)
      VALUES ($1, $2, $3)
-     RETURNING id, nombre, correo, password_hash, creditos`,
-    [nombre, correo.toLowerCase().trim(), passwordHash]
+     RETURNING id, nombre, telefono, password_hash, creditos`,
+    [nombre, normalizarTelefono(telefono), passwordHash]
   );
   return mapUsuario(res.rows[0]);
 }
 
-export async function obtenerUsuarioPorCorreo(correo: string): Promise<Usuario | null> {
+export async function obtenerUsuarioPorTelefono(telefono: string): Promise<Usuario | null> {
   await ensureTables();
   const res = await getPool().query(
-    "SELECT id, nombre, correo, password_hash, creditos FROM usuarios WHERE correo = $1",
-    [correo.toLowerCase().trim()]
+    "SELECT id, nombre, telefono, password_hash, creditos FROM usuarios WHERE telefono = $1",
+    [normalizarTelefono(telefono)]
   );
   return res.rows[0] ? mapUsuario(res.rows[0]) : null;
 }
@@ -160,10 +179,18 @@ export async function obtenerUsuarioPorCorreo(correo: string): Promise<Usuario |
 export async function obtenerUsuarioPorId(id: number): Promise<Usuario | null> {
   await ensureTables();
   const res = await getPool().query(
-    "SELECT id, nombre, correo, password_hash, creditos FROM usuarios WHERE id = $1",
+    "SELECT id, nombre, telefono, password_hash, creditos FROM usuarios WHERE id = $1",
     [id]
   );
   return res.rows[0] ? mapUsuario(res.rows[0]) : null;
+}
+
+export async function actualizarPassword(usuarioId: number, passwordHash: string): Promise<void> {
+  await ensureTables();
+  await getPool().query("UPDATE usuarios SET password_hash = $1 WHERE id = $2", [
+    passwordHash,
+    usuarioId,
+  ]);
 }
 
 export async function descontarCredito(usuarioId: number): Promise<boolean> {
@@ -218,7 +245,7 @@ function generarCodigoSeguimiento(): string {
 
 export async function crearSolicitudTransferencia(
   usuarioId: number,
-  email: string,
+  telefono: string,
   monto: number
 ): Promise<string> {
   await ensureTables();
@@ -228,8 +255,8 @@ export async function crearSolicitudTransferencia(
     const codigo = generarCodigoSeguimiento();
     try {
       await db.query(
-        "INSERT INTO solicitudes_transferencia (usuario_id, email, codigo, monto) VALUES ($1, $2, $3, $4)",
-        [usuarioId, email, codigo, monto]
+        "INSERT INTO solicitudes_transferencia (usuario_id, telefono, codigo, monto) VALUES ($1, $2, $3, $4)",
+        [usuarioId, telefono, codigo, monto]
       );
       return codigo;
     } catch (error) {
@@ -285,11 +312,78 @@ export async function aprobarSolicitudTransferencia(
   await db.query("UPDATE solicitudes_transferencia SET confirmada = true WHERE id = $1", [id]);
 
   const res = await db.query(
-    "UPDATE usuarios SET creditos = creditos + $1 WHERE id = $2 RETURNING correo",
+    "UPDATE usuarios SET creditos = creditos + $1 WHERE id = $2 RETURNING telefono",
     [DESCARGAS_PAQUETE, fila.usuario_id]
   );
 
-  return { ok: true, mensaje: `Se agregaron ${DESCARGAS_PAQUETE} descargas a ${res.rows[0].correo}.` };
+  return { ok: true, mensaje: `Se agregaron ${DESCARGAS_PAQUETE} descargas a ${res.rows[0].telefono}.` };
+}
+
+function generarCodigoNumerico(): string {
+  return String(randomInt(100000, 1000000));
+}
+
+export async function crearCodigoRecuperacion(usuarioId: number): Promise<string> {
+  await ensureTables();
+  const codigo = generarCodigoNumerico();
+  await getPool().query(
+    "INSERT INTO codigos_recuperacion (usuario_id, codigo) VALUES ($1, $2)",
+    [usuarioId, codigo]
+  );
+  return codigo;
+}
+
+export async function validarCodigoRecuperacion(
+  telefono: string,
+  codigo: string
+): Promise<Usuario | null> {
+  await ensureTables();
+  const db = getPool();
+
+  const usuario = await obtenerUsuarioPorTelefono(telefono);
+  if (!usuario) return null;
+
+  const res = await db.query(
+    `SELECT id FROM codigos_recuperacion
+     WHERE usuario_id = $1 AND codigo = $2 AND usado = false
+       AND created_at > now() - interval '30 minutes'
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [usuario.id, codigo]
+  );
+  if (!res.rows[0]) return null;
+
+  await db.query("UPDATE codigos_recuperacion SET usado = true WHERE id = $1", [res.rows[0].id]);
+  return usuario;
+}
+
+export interface RecuperacionPendiente {
+  id: number;
+  nombre: string;
+  telefono: string;
+  codigo: string;
+  usado: boolean;
+  fecha: string;
+}
+
+export async function obtenerRecuperacionesRecientes(): Promise<RecuperacionPendiente[]> {
+  await ensureTables();
+  const res = await getPool().query(
+    `SELECT cr.id, cr.codigo, cr.usado, cr.created_at, u.nombre, u.telefono
+     FROM codigos_recuperacion cr
+     JOIN usuarios u ON u.id = cr.usuario_id
+     WHERE cr.created_at > now() - interval '24 hours'
+     ORDER BY cr.created_at DESC
+     LIMIT 50`
+  );
+  return res.rows.map((r) => ({
+    id: r.id,
+    nombre: r.nombre,
+    telefono: r.telefono,
+    codigo: r.codigo,
+    usado: r.usado,
+    fecha: r.created_at,
+  }));
 }
 
 export interface EstadisticasAdmin {
@@ -302,19 +396,20 @@ export interface EstadisticasAdmin {
     id: number;
     codigo: string | null;
     nombre: string | null;
-    correo: string;
+    telefono: string;
     fecha: string;
     monto: number;
     confirmada: boolean;
   }[];
   donantes: { nombre: string; correo: string; fecha: string }[];
+  recuperaciones: RecuperacionPendiente[];
 }
 
 export async function obtenerEstadisticas(): Promise<EstadisticasAdmin> {
   await ensureTables();
   const db = getPool();
 
-  const [totalVisitas, visitasPorDia, totalCompras, compras, transferencias, donantes] =
+  const [totalVisitas, visitasPorDia, totalCompras, compras, transferencias, donantes, recuperaciones] =
     await Promise.all([
       db.query("SELECT COUNT(*)::int AS total FROM page_views"),
       db.query(
@@ -332,7 +427,7 @@ export async function obtenerEstadisticas(): Promise<EstadisticasAdmin> {
        LIMIT 100`
       ),
       db.query(
-        `SELECT st.id, st.codigo, st.email, st.created_at, st.monto, st.confirmada, u.nombre
+        `SELECT st.id, st.codigo, COALESCE(st.telefono, st.email) AS contacto, st.created_at, st.monto, st.confirmada, u.nombre
        FROM solicitudes_transferencia st
        LEFT JOIN usuarios u ON u.id = st.usuario_id
        ORDER BY st.created_at DESC
@@ -341,6 +436,7 @@ export async function obtenerEstadisticas(): Promise<EstadisticasAdmin> {
       db.query(
         `SELECT nombre, correo, created_at FROM donantes ORDER BY created_at DESC LIMIT 100`
       ),
+      obtenerRecuperacionesRecientes(),
     ]);
 
   return {
@@ -358,7 +454,7 @@ export async function obtenerEstadisticas(): Promise<EstadisticasAdmin> {
       id: r.id,
       codigo: r.codigo,
       nombre: r.nombre,
-      correo: r.email,
+      telefono: r.contacto,
       fecha: r.created_at,
       monto: r.monto,
       confirmada: r.confirmada,
@@ -368,5 +464,6 @@ export async function obtenerEstadisticas(): Promise<EstadisticasAdmin> {
       correo: r.correo,
       fecha: r.created_at,
     })),
+    recuperaciones,
   };
 }

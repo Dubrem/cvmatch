@@ -10,7 +10,7 @@ const inputClass =
 
 export default function LoginPage() {
   const router = useRouter();
-  const [correo, setCorreo] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export default function LoginPage() {
       const res = await fetch("/api/cuenta/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ correo, password }),
+        body: JSON.stringify({ telefono, password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -54,18 +54,27 @@ export default function LoginPage() {
 
           <div className="mt-5 space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-navy-light">Correo</label>
+              <label className="mb-1.5 block text-sm font-medium text-navy-light">
+                Número de WhatsApp
+              </label>
               <input
-                type="email"
+                type="tel"
                 className={inputClass}
-                value={correo}
-                onChange={(e) => setCorreo(e.target.value)}
-                placeholder="tucorreo@ejemplo.com"
+                value={telefono}
+                onChange={(e) => setTelefono(e.target.value)}
+                placeholder="442 105 2174"
                 required
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-navy-light">Contraseña</label>
+              <div className="flex items-center justify-between">
+                <label className="mb-1.5 block text-sm font-medium text-navy-light">
+                  Contraseña
+                </label>
+                <Link href="/cuenta/olvide" className="text-xs font-semibold text-cyan hover:text-cyan-light">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
               <input
                 type="password"
                 className={inputClass}

@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { crearUsuario, obtenerUsuarioPorCorreo } from "@/lib/db";
+import { crearUsuario, obtenerUsuarioPorTelefono } from "@/lib/db";
 import { generarTokenUsuario, hashPassword, USER_COOKIE_NAME } from "@/lib/userAuth";
 
 export async function POST(req: NextRequest) {
   try {
-    const { nombre, correo, password } = await req.json();
+    const { nombre, telefono, password } = await req.json();
 
     if (typeof nombre !== "string" || nombre.trim().length < 2) {
       return NextResponse.json({ error: "Ingresa tu nombre completo." }, { status: 400 });
     }
-    if (typeof correo !== "string" || !correo.includes("@")) {
-      return NextResponse.json({ error: "Ingresa un correo válido." }, { status: 400 });
+    if (typeof telefono !== "string" || telefono.replace(/\D/g, "").length < 10) {
+      return NextResponse.json(
+        { error: "Ingresa un número de WhatsApp válido (10 dígitos)." },
+        { status: 400 }
+      );
     }
     if (typeof password !== "string" || password.length < 6) {
       return NextResponse.json(
@@ -19,12 +22,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existente = await obtenerUsuarioPorCorreo(correo);
+    const existente = await obtenerUsuarioPorTelefono(telefono);
     if (existente) {
-      return NextResponse.json({ error: "Ya existe una cuenta con ese correo." }, { status: 409 });
+      return NextResponse.json(
+        { error: "Ya existe una cuenta con ese número de WhatsApp." },
+        { status: 409 }
+      );
     }
 
-    const usuario = await crearUsuario(nombre.trim(), correo, hashPassword(password));
+    const usuario = await crearUsuario(nombre.trim(), telefono, hashPassword(password));
 
     const res = NextResponse.json({ ok: true });
     res.cookies.set(USER_COOKIE_NAME, generarTokenUsuario(usuario.id), {

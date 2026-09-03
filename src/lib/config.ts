@@ -13,3 +13,10 @@ export function construirLinkWhatsApp(codigo: string): string {
   const mensaje = `Hola, aquí está mi comprobante de transferencia para MatchCV. Mi código de seguimiento es: ${codigo}`;
   return `https://wa.me/52${WHATSAPP_COMPROBANTES}?text=${encodeURIComponent(mensaje)}`;
 }
+
+/** Link de WhatsApp que el admin usa para escribirle a un cliente (ej. enviar su código de recuperación). */
+export function construirLinkWhatsAppACliente(telefono: string, mensaje: string): string {
+  const numero = telefono.replace(/\D/g, "");
+  const conLada = numero.length === 10 ? `52${numero}` : numero;
+  return `https://wa.me/${conLada}?text=${encodeURIComponent(mensaje)}`;
+}

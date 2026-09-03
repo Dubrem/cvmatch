@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { obtenerUsuarioPorCorreo } from "@/lib/db";
+import { obtenerUsuarioPorTelefono } from "@/lib/db";
 import { generarTokenUsuario, USER_COOKIE_NAME, verifyPassword } from "@/lib/userAuth";
 
 export async function POST(req: NextRequest) {
   try {
-    const { correo, password } = await req.json();
+    const { telefono, password } = await req.json();
 
-    if (typeof correo !== "string" || typeof password !== "string") {
-      return NextResponse.json({ error: "Correo y contraseña son requeridos." }, { status: 400 });
+    if (typeof telefono !== "string" || typeof password !== "string") {
+      return NextResponse.json(
+        { error: "Número de WhatsApp y contraseña son requeridos." },
+        { status: 400 }
+      );
     }
 
-    const usuario = await obtenerUsuarioPorCorreo(correo);
+    const usuario = await obtenerUsuarioPorTelefono(telefono);
     if (!usuario || !verifyPassword(password, usuario.passwordHash)) {
-      return NextResponse.json({ error: "Correo o contraseña incorrectos." }, { status: 401 });
+      return NextResponse.json({ error: "Número o contraseña incorrectos." }, { status: 401 });
     }
 
     const res = NextResponse.json({ ok: true });

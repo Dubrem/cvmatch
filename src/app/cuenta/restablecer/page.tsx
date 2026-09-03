@@ -8,10 +8,10 @@ import { Sparkles, Loader2 } from "lucide-react";
 const inputClass =
   "w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20";
 
-export default function RegistroPage() {
+export default function RestablecerPage() {
   const router = useRouter();
-  const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
+  const [codigo, setCodigo] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,14 +21,14 @@ export default function RegistroPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/cuenta/registro", {
+      const res = await fetch("/api/cuenta/restablecer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, telefono, password }),
+        body: JSON.stringify({ telefono, codigo, password }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "No se pudo crear tu cuenta.");
+        setError(data.error ?? "No se pudo restablecer tu contraseña.");
         return;
       }
       router.push("/cuenta");
@@ -50,22 +50,12 @@ export default function RegistroPage() {
         </Link>
 
         <form onSubmit={handleSubmit} className="card-shadow rounded-2xl border border-border bg-surface p-7">
-          <h1 className="text-lg font-bold text-navy">Crea tu cuenta</h1>
+          <h1 className="text-lg font-bold text-navy">Nueva contraseña</h1>
           <p className="mt-1 text-sm text-muted">
-            Guarda tus CVs y descárgalos cuando confirmemos tu pago.
+            Ingresa el código de 6 dígitos que te enviamos por WhatsApp.
           </p>
 
           <div className="mt-5 space-y-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-navy-light">Nombre completo</label>
-              <input
-                className={inputClass}
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="Tu nombre"
-                required
-              />
-            </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-navy-light">
                 Número de WhatsApp
@@ -80,7 +70,22 @@ export default function RegistroPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-navy-light">Contraseña</label>
+              <label className="mb-1.5 block text-sm font-medium text-navy-light">
+                Código de 6 dígitos
+              </label>
+              <input
+                className={`${inputClass} text-center font-mono text-lg tracking-widest`}
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
+                placeholder="123456"
+                maxLength={6}
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-navy-light">
+                Nueva contraseña
+              </label>
               <input
                 type="password"
                 className={inputClass}
@@ -100,13 +105,12 @@ export default function RegistroPage() {
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan to-mint py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
           >
             {loading && <Loader2 size={16} className="animate-spin" />}
-            Crear cuenta
+            Guardar nueva contraseña
           </button>
 
           <p className="mt-4 text-center text-sm text-muted">
-            ¿Ya tienes cuenta?{" "}
             <Link href="/cuenta/login" className="font-semibold text-cyan hover:text-cyan-light">
-              Inicia sesión
+              Volver a iniciar sesión
             </Link>
           </p>
         </form>

@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Necesitas iniciar sesión primero." }, { status: 401 });
     }
 
-    const codigo = await crearSolicitudTransferencia(usuario.id, usuario.correo, PRECIO_PAQUETE_CENTAVOS);
+    const codigo = await crearSolicitudTransferencia(usuario.id, usuario.telefono, PRECIO_PAQUETE_CENTAVOS);
     return NextResponse.json({ ok: true, codigo });
   } catch (error) {
     console.error("Error al registrar solicitud de transferencia:", error);

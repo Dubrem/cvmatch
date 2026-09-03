@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, DollarSign, ShoppingBag, Lock, Loader2, CheckCircle2 } from "lucide-react";
+import { Eye, DollarSign, ShoppingBag, Lock, Loader2, CheckCircle2, MessageCircle } from "lucide-react";
 import type { EstadisticasAdmin } from "@/lib/db";
+import { construirLinkWhatsAppACliente } from "@/lib/config";
 
 export default function AdminPage() {
   const [stats, setStats] = useState<EstadisticasAdmin | null>(null);
@@ -258,11 +259,11 @@ export default function AdminPage() {
                         {s.nombre ? (
                           <>
                             {s.nombre}
-                            <span className="block text-xs text-muted">{s.correo}</span>
+                            <span className="block text-xs text-muted">{s.telefono}</span>
                           </>
                         ) : (
                           <span className="text-xs font-semibold text-amber-600">
-                            Sin cuenta ({s.correo})
+                            Sin cuenta ({s.telefono})
                           </span>
                         )}
                       </td>
@@ -330,6 +331,63 @@ export default function AdminPage() {
                       <td className="px-6 py-3 text-muted">{d.correo}</td>
                       <td className="px-6 py-3 text-muted">
                         {new Date(d.fecha).toLocaleString("es-MX")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="card-shadow mt-6 overflow-hidden rounded-2xl border border-border bg-surface">
+          <h2 className="border-b border-border px-6 py-4 text-sm font-bold text-navy">
+            Recuperación de contraseña (últimas 24h)
+          </h2>
+          {stats.recuperaciones.length === 0 ? (
+            <p className="px-6 py-6 text-sm text-muted">No hay solicitudes recientes.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs uppercase text-muted">
+                    <th className="px-6 py-3">Cliente</th>
+                    <th className="px-6 py-3">Código</th>
+                    <th className="px-6 py-3">Fecha</th>
+                    <th className="px-6 py-3">Estado</th>
+                    <th className="px-6 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.recuperaciones.map((r) => (
+                    <tr key={r.id} className="border-b border-border last:border-0">
+                      <td className="px-6 py-3 text-navy">
+                        {r.nombre}
+                        <span className="block text-xs text-muted">{r.telefono}</span>
+                      </td>
+                      <td className="px-6 py-3 font-mono font-semibold text-navy">{r.codigo}</td>
+                      <td className="px-6 py-3 text-muted">
+                        {new Date(r.fecha).toLocaleString("es-MX")}
+                      </td>
+                      <td className="px-6 py-3">
+                        {r.usado ? (
+                          <span className="text-xs font-semibold text-mint">Usado</span>
+                        ) : (
+                          <span className="text-xs font-semibold text-amber-600">Sin usar</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-3">
+                        <a
+                          href={construirLinkWhatsAppACliente(
+                            r.telefono,
+                            `Hola ${r.nombre}, tu código de recuperación de contraseña de MatchCV es: ${r.codigo}`
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 rounded-lg bg-mint px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-mint-light"
+                        >
+                          <MessageCircle size={13} /> Enviar por WhatsApp
+                        </a>
                       </td>
                     </tr>
                   ))}

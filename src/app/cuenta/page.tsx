@@ -35,7 +35,7 @@ interface SolicitudCliente {
 
 interface Cuenta {
   nombre: string;
-  correo: string;
+  telefono: string;
   creditos: number;
   cvs: CvGuardado[];
   solicitudes: SolicitudCliente[];
@@ -125,7 +125,7 @@ export default function CuentaPage() {
 
       <main className="mx-auto max-w-4xl px-6 py-10">
         <h1 className="text-2xl font-bold text-navy">Hola, {cuenta.nombre}</h1>
-        <p className="mt-1 text-sm text-muted">{cuenta.correo}</p>
+        <p className="mt-1 text-sm text-muted">{cuenta.telefono}</p>
 
         <div className="card-shadow mt-6 flex items-center justify-between rounded-2xl border border-border bg-surface p-6">
           <div>
