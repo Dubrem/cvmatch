@@ -1,20 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, Copy, Check, Loader2, Landmark, MessageCircle } from "lucide-react";
-import { DATOS_BANCARIOS, DESCARGAS_PAQUETE, WHATSAPP_LINK_COMPROBANTES } from "@/lib/config";
+import { X, Copy, Check, Loader2, Landmark, MessageCircle, LogIn } from "lucide-react";
+import { DATOS_BANCARIOS, DESCARGAS_PAQUETE, construirLinkWhatsApp } from "@/lib/config";
 
 interface Props {
   onClose: () => void;
 }
 
 export default function TransferenciaModal({ onClose }: Props) {
+  const [cargandoSesion, setCargandoSesion] = useState(true);
+  const [autenticado, setAutenticado] = useState(false);
   const [copiado, setCopiado] = useState(false);
-  const [email, setEmail] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [enviado, setEnviado] = useState(false);
+  const [codigo, setCodigo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/cuenta/me")
+      .then((res) => setAutenticado(res.ok))
+      .catch(() => setAutenticado(false))
+      .finally(() => setCargandoSesion(false));
+  }, []);
 
   const copiarClabe = () => {
     navigator.clipboard.writeText(DATOS_BANCARIOS.clabe);
@@ -22,22 +30,17 @@ export default function TransferenciaModal({ onClose }: Props) {
     setTimeout(() => setCopiado(false), 2000);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleTransferi = async () => {
     setError(null);
     setEnviando(true);
     try {
-      const res = await fetch("/api/transferencia", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
+      const res = await fetch("/api/transferencia", { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "No se pudo registrar tu solicitud.");
         return;
       }
-      setEnviado(true);
+      setCodigo(data.codigo);
     } catch {
       setError("Error de conexión. Intenta de nuevo.");
     } finally {
@@ -66,7 +69,32 @@ export default function TransferenciaModal({ onClose }: Props) {
           </div>
         </div>
 
-        {!enviado ? (
+        {cargandoSesion ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="animate-spin text-muted" size={24} />
+          </div>
+        ) : !autenticado ? (
+          <div className="py-2 text-center">
+            <p className="text-sm text-muted">
+              Necesitas una cuenta para poder generar tu código de seguimiento y descargar tu CV
+              después.
+            </p>
+            <div className="mt-5 flex justify-center gap-3">
+              <Link
+                href="/cuenta/login"
+                className="flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-navy-light transition hover:bg-slate-50"
+              >
+                <LogIn size={16} /> Iniciar sesión
+              </Link>
+              <Link
+                href="/cuenta/registro"
+                className="flex items-center gap-2 rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-light"
+              >
+                Crear cuenta
+              </Link>
+            </div>
+          </div>
+        ) : !codigo ? (
           <>
             <div className="space-y-3 rounded-xl border border-border bg-background p-4 text-sm">
               <div className="flex items-center justify-between">
@@ -97,49 +125,36 @@ export default function TransferenciaModal({ onClose }: Props) {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="mt-5">
-              <label className="mb-1.5 block text-sm font-medium text-navy-light">
-                Correo con el que te registraste (o vas a registrarte)
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="tucorreo@ejemplo.com"
-                className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
-              />
-              {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-              <button
-                type="submit"
-                disabled={enviando}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-navy py-3 text-sm font-semibold text-white transition hover:bg-navy-light disabled:opacity-60"
-              >
-                {enviando && <Loader2 size={16} className="animate-spin" />}
-                Ya hice la transferencia
-              </button>
-              <p className="mt-2 text-center text-xs text-muted">
-                ¿Aún no tienes cuenta?{" "}
-                <Link href="/cuenta/registro" className="font-semibold text-cyan hover:text-cyan-light">
-                  Regístrate aquí
-                </Link>{" "}
-                con el mismo correo antes de que confirmemos tu pago.
-              </p>
-            </form>
+            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+            <button
+              onClick={handleTransferi}
+              disabled={enviando}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-navy py-3 text-sm font-semibold text-white transition hover:bg-navy-light disabled:opacity-60"
+            >
+              {enviando && <Loader2 size={16} className="animate-spin" />}
+              Ya hice la transferencia
+            </button>
+            <p className="mt-3 text-center text-xs text-muted">
+              Te daremos un código de seguimiento para que lo envíes junto con tu comprobante por
+              WhatsApp.
+            </p>
           </>
         ) : (
-          <div className="py-4 text-center">
+          <div className="py-2 text-center">
             <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-mint/10 text-mint">
               <Check size={24} />
             </span>
-            <p className="font-semibold text-navy">¡Solicitud registrada!</p>
-            <p className="mt-1 text-sm text-muted">
-              Ahora envíanos tu comprobante por WhatsApp para confirmar más rápido. En cuanto lo
-              validemos, activaremos tus {DESCARGAS_PAQUETE} descargas en la cuenta de{" "}
-              <span className="font-medium text-navy">{email}</span>.
+            <p className="font-semibold text-navy">Tu código de seguimiento es:</p>
+            <p className="mt-2 rounded-xl border-2 border-dashed border-cyan bg-cyan/5 py-3 font-mono text-2xl font-extrabold tracking-wider text-cyan">
+              {codigo}
+            </p>
+            <p className="mt-3 text-sm text-muted">
+              Envíanos tu comprobante junto con este código por WhatsApp. En cuanto lo confirmemos,
+              verás tu pago aprobado dentro de tu cuenta.
             </p>
             <a
-              href={WHATSAPP_LINK_COMPROBANTES}
+              href={construirLinkWhatsApp(codigo)}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-mint py-3 text-sm font-semibold text-white transition hover:bg-mint-light"
@@ -147,6 +162,12 @@ export default function TransferenciaModal({ onClose }: Props) {
               <MessageCircle size={16} />
               Enviar comprobante por WhatsApp
             </a>
+            <Link
+              href="/cuenta"
+              className="mt-3 block text-center text-xs font-semibold text-cyan hover:text-cyan-light"
+            >
+              Ir a mi cuenta
+            </Link>
           </div>
         )}
       </div>

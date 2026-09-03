@@ -240,8 +240,8 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase text-muted">
-                    <th className="px-6 py-3">Correo</th>
-                    <th className="px-6 py-3">Cuenta</th>
+                    <th className="px-6 py-3">Código</th>
+                    <th className="px-6 py-3">Cliente</th>
                     <th className="px-6 py-3">Fecha</th>
                     <th className="px-6 py-3">Monto</th>
                     <th className="px-6 py-3">Estado</th>
@@ -251,12 +251,19 @@ export default function AdminPage() {
                 <tbody>
                   {stats.solicitudesTransferencia.map((s) => (
                     <tr key={s.id} className="border-b border-border last:border-0">
-                      <td className="px-6 py-3 text-navy">{s.email}</td>
-                      <td className="px-6 py-3">
-                        {s.tieneCuenta ? (
-                          <span className="text-xs font-semibold text-mint">Registrada</span>
+                      <td className="px-6 py-3 font-mono font-semibold text-navy">
+                        {s.codigo ?? "—"}
+                      </td>
+                      <td className="px-6 py-3 text-navy">
+                        {s.nombre ? (
+                          <>
+                            {s.nombre}
+                            <span className="block text-xs text-muted">{s.correo}</span>
+                          </>
                         ) : (
-                          <span className="text-xs font-semibold text-amber-600">Sin cuenta</span>
+                          <span className="text-xs font-semibold text-amber-600">
+                            Sin cuenta ({s.correo})
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-3 text-muted">

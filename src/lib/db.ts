@@ -1,4 +1,5 @@
 import { Pool, types } from "pg";
+import { randomBytes } from "crypto";
 import { DESCARGAS_PAQUETE } from "./config";
 
 // Postgres devuelve BIGINT/BIGSERIAL (OID 20) como string por defecto para no
@@ -42,13 +43,6 @@ async function ensureTables(): Promise<void> {
           currency TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         );
-        CREATE TABLE IF NOT EXISTS solicitudes_transferencia (
-          id BIGSERIAL PRIMARY KEY,
-          email TEXT NOT NULL,
-          monto INTEGER NOT NULL,
-          confirmada BOOLEAN NOT NULL DEFAULT false,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-        );
         CREATE TABLE IF NOT EXISTS usuarios (
           id BIGSERIAL PRIMARY KEY,
           nombre TEXT NOT NULL,
@@ -57,6 +51,19 @@ async function ensureTables(): Promise<void> {
           creditos INTEGER NOT NULL DEFAULT 0,
           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         );
+        CREATE TABLE IF NOT EXISTS solicitudes_transferencia (
+          id BIGSERIAL PRIMARY KEY,
+          usuario_id BIGINT REFERENCES usuarios(id) ON DELETE CASCADE,
+          email TEXT NOT NULL,
+          codigo TEXT,
+          monto INTEGER NOT NULL,
+          confirmada BOOLEAN NOT NULL DEFAULT false,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
+        ALTER TABLE solicitudes_transferencia ADD COLUMN IF NOT EXISTS usuario_id BIGINT REFERENCES usuarios(id) ON DELETE CASCADE;
+        ALTER TABLE solicitudes_transferencia ADD COLUMN IF NOT EXISTS codigo TEXT;
+        CREATE UNIQUE INDEX IF NOT EXISTS solicitudes_transferencia_codigo_idx
+          ON solicitudes_transferencia (codigo) WHERE codigo IS NOT NULL;
         CREATE TABLE IF NOT EXISTS cvs_generados (
           id BIGSERIAL PRIMARY KEY,
           usuario_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -94,14 +101,6 @@ export async function registrarCompra(params: {
      VALUES ($1, $2, $3, $4)
      ON CONFLICT (stripe_session_id) DO NOTHING`,
     [params.sessionId, params.email, params.amountTotal, params.currency]
-  );
-}
-
-export async function registrarSolicitudTransferencia(email: string, monto: number): Promise<void> {
-  await ensureTables();
-  await getPool().query(
-    "INSERT INTO solicitudes_transferencia (email, monto) VALUES ($1, $2)",
-    [email, monto]
   );
 }
 
@@ -213,6 +212,59 @@ export async function obtenerCvsDeUsuario(usuarioId: number): Promise<CvGuardado
   }));
 }
 
+function generarCodigoSeguimiento(): string {
+  return `MCV-${randomBytes(3).toString("hex").toUpperCase()}`;
+}
+
+export async function crearSolicitudTransferencia(
+  usuarioId: number,
+  email: string,
+  monto: number
+): Promise<string> {
+  await ensureTables();
+  const db = getPool();
+
+  for (let intento = 0; intento < 5; intento++) {
+    const codigo = generarCodigoSeguimiento();
+    try {
+      await db.query(
+        "INSERT INTO solicitudes_transferencia (usuario_id, email, codigo, monto) VALUES ($1, $2, $3, $4)",
+        [usuarioId, email, codigo, monto]
+      );
+      return codigo;
+    } catch (error) {
+      const codigoDuplicado = (error as { code?: string })?.code === "23505";
+      if (!codigoDuplicado || intento === 4) throw error;
+    }
+  }
+  throw new Error("No se pudo generar un código de seguimiento único.");
+}
+
+export interface SolicitudCliente {
+  codigo: string;
+  monto: number;
+  confirmada: boolean;
+  fecha: string;
+}
+
+export async function obtenerSolicitudesDeUsuario(usuarioId: number): Promise<SolicitudCliente[]> {
+  await ensureTables();
+  const res = await getPool().query(
+    `SELECT codigo, monto, confirmada, created_at
+     FROM solicitudes_transferencia
+     WHERE usuario_id = $1
+     ORDER BY created_at DESC
+     LIMIT 20`,
+    [usuarioId]
+  );
+  return res.rows.map((r) => ({
+    codigo: r.codigo,
+    monto: r.monto,
+    confirmada: r.confirmada,
+    fecha: r.created_at,
+  }));
+}
+
 export async function aprobarSolicitudTransferencia(
   id: number
 ): Promise<{ ok: boolean; mensaje: string }> {
@@ -220,43 +272,24 @@ export async function aprobarSolicitudTransferencia(
   const db = getPool();
 
   const solicitud = await db.query(
-    "SELECT id, email, confirmada FROM solicitudes_transferencia WHERE id = $1",
+    "SELECT id, usuario_id, confirmada FROM solicitudes_transferencia WHERE id = $1",
     [id]
   );
   const fila = solicitud.rows[0];
   if (!fila) return { ok: false, mensaje: "Solicitud no encontrada." };
   if (fila.confirmada) return { ok: false, mensaje: "Esta solicitud ya estaba confirmada." };
-
-  const usuario = await obtenerUsuarioPorCorreo(fila.email);
+  if (!fila.usuario_id) {
+    return { ok: false, mensaje: "Esta solicitud no está ligada a ninguna cuenta." };
+  }
 
   await db.query("UPDATE solicitudes_transferencia SET confirmada = true WHERE id = $1", [id]);
 
-  if (!usuario) {
-    return {
-      ok: true,
-      mensaje: `Marcada como confirmada, pero ${fila.email} todavía no tiene cuenta registrada en /cuenta/registro. Cuando se registre, agrégale los créditos manualmente o dile que contacte soporte.`,
-    };
-  }
+  const res = await db.query(
+    "UPDATE usuarios SET creditos = creditos + $1 WHERE id = $2 RETURNING correo",
+    [DESCARGAS_PAQUETE, fila.usuario_id]
+  );
 
-  await db.query("UPDATE usuarios SET creditos = creditos + $1 WHERE id = $2", [
-    DESCARGAS_PAQUETE,
-    usuario.id,
-  ]);
-
-  let avisoCorreo = " No se pudo enviar el correo de aviso (falta configurar GMAIL_APP_PASSWORD).";
-  try {
-    const { enviarNotificacionAprobacion } = await import("./email");
-    const enviado = await enviarNotificacionAprobacion(usuario.correo, usuario.nombre);
-    if (enviado) avisoCorreo = " Se le notificó por correo.";
-  } catch (error) {
-    console.error("Error al enviar correo de notificación:", error);
-    avisoCorreo = " No se pudo enviar el correo de aviso (revisa la configuración de Gmail).";
-  }
-
-  return {
-    ok: true,
-    mensaje: `Se agregaron ${DESCARGAS_PAQUETE} descargas a ${usuario.correo}.${avisoCorreo}`,
-  };
+  return { ok: true, mensaje: `Se agregaron ${DESCARGAS_PAQUETE} descargas a ${res.rows[0].correo}.` };
 }
 
 export interface EstadisticasAdmin {
@@ -267,11 +300,12 @@ export interface EstadisticasAdmin {
   compras: { email: string | null; fecha: string; monto: number; moneda: string }[];
   solicitudesTransferencia: {
     id: number;
-    email: string;
+    codigo: string | null;
+    nombre: string | null;
+    correo: string;
     fecha: string;
     monto: number;
     confirmada: boolean;
-    tieneCuenta: boolean;
   }[];
   donantes: { nombre: string; correo: string; fecha: string }[];
 }
@@ -298,10 +332,9 @@ export async function obtenerEstadisticas(): Promise<EstadisticasAdmin> {
        LIMIT 100`
       ),
       db.query(
-        `SELECT st.id, st.email, st.created_at, st.monto, st.confirmada,
-                (u.id IS NOT NULL) AS tiene_cuenta
+        `SELECT st.id, st.codigo, st.email, st.created_at, st.monto, st.confirmada, u.nombre
        FROM solicitudes_transferencia st
-       LEFT JOIN usuarios u ON u.correo = st.email
+       LEFT JOIN usuarios u ON u.id = st.usuario_id
        ORDER BY st.created_at DESC
        LIMIT 100`
       ),
@@ -323,11 +356,12 @@ export async function obtenerEstadisticas(): Promise<EstadisticasAdmin> {
     })),
     solicitudesTransferencia: transferencias.rows.map((r) => ({
       id: r.id,
-      email: r.email,
+      codigo: r.codigo,
+      nombre: r.nombre,
+      correo: r.email,
       fecha: r.created_at,
       monto: r.monto,
       confirmada: r.confirmada,
-      tieneCuenta: r.tiene_cuenta,
     })),
     donantes: donantes.rows.map((r) => ({
       nombre: r.nombre,

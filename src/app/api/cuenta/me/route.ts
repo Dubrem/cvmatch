@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { obtenerCvsDeUsuario, obtenerUsuarioPorId } from "@/lib/db";
+import { obtenerCvsDeUsuario, obtenerSolicitudesDeUsuario, obtenerUsuarioPorId } from "@/lib/db";
 import { usuarioIdDeSesion } from "@/lib/userAuth";
 
 export async function GET(req: NextRequest) {
@@ -13,12 +13,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
 
-  const cvs = await obtenerCvsDeUsuario(usuario.id);
+  const [cvs, solicitudes] = await Promise.all([
+    obtenerCvsDeUsuario(usuario.id),
+    obtenerSolicitudesDeUsuario(usuario.id),
+  ]);
 
   return NextResponse.json({
     nombre: usuario.nombre,
     correo: usuario.correo,
     creditos: usuario.creditos,
     cvs,
+    solicitudes,
   });
 }

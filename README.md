@@ -56,10 +56,12 @@ Plataforma de diagnóstico gratuito de compatibilidad (match) contra una vacante
 
 ## Flujo de pago por transferencia
 
-1. El cliente ve los datos bancarios en el modal de "Pagar por transferencia" y manda su comprobante por correo.
-2. Debe crear una cuenta en `/cuenta/registro` con el mismo correo que usó al llenar el formulario de transferencia.
-3. En `/admin`, la tabla "Solicitudes de transferencia por confirmar" muestra si ese correo ya tiene cuenta (columna "Cuenta").
-4. Al hacer clic en **Aprobar**, se le agregan automáticamente las descargas del paquete a esa cuenta.
+1. Para descargar su CV, el cliente necesita una cuenta (`/cuenta/registro`).
+2. Con sesión iniciada, al hacer clic en "Pagar por transferencia" ve los datos bancarios; al confirmar que ya transfirió, el sistema genera un **código de seguimiento único** (ej. `MCV-A1B2C3`) ligado a su cuenta.
+3. El cliente manda su comprobante junto con ese código por WhatsApp (botón que abre `wa.me` con el mensaje precargado).
+4. En `/admin`, la tabla "Solicitudes de transferencia por confirmar" muestra el código y el cliente (nombre y correo). El admin compara el código contra lo que le llegó por WhatsApp.
+5. Al hacer clic en **Aprobar**, se acreditan automáticamente las descargas del paquete a esa cuenta.
+6. El cliente ve el cambio de estado ("Pago aprobado") en `/cuenta` la próxima vez que entra — no hay notificación push automática, solo por WhatsApp de forma manual.
 
 ## Notas de producto
 

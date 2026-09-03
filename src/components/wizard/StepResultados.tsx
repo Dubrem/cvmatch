@@ -8,12 +8,15 @@ import {
   MapPin,
   Download,
   RotateCcw,
-  Lock,
+  Landmark,
   Loader2,
   LogIn,
+  MessageCircle,
 } from "lucide-react";
 import type { MatchResult, PerfilEgresado } from "@/lib/types";
 import { generarCvPdf } from "@/lib/pdf";
+import { construirLinkWhatsApp } from "@/lib/config";
+import TransferenciaModal from "@/components/TransferenciaModal";
 
 interface Props {
   perfil: PerfilEgresado;
@@ -31,13 +34,15 @@ export default function StepResultados({ perfil, resultado, onRestart }: Props) 
   const [cargandoSesion, setCargandoSesion] = useState(true);
   const [autenticado, setAutenticado] = useState(false);
   const [creditos, setCreditos] = useState(0);
+  const [codigoPendiente, setCodigoPendiente] = useState<string | null>(null);
+  const [mostrarTransferencia, setMostrarTransferencia] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const color = scoreColor(resultado.match_percentage);
   const circumference = 2 * Math.PI * 54;
   const offset = circumference - (resultado.match_percentage / 100) * circumference;
 
-  useEffect(() => {
+  const cargarSesion = () => {
     fetch("/api/cuenta/me")
       .then(async (res) => {
         if (!res.ok) {
@@ -47,9 +52,17 @@ export default function StepResultados({ perfil, resultado, onRestart }: Props) 
         const data = await res.json();
         setAutenticado(true);
         setCreditos(data.creditos ?? 0);
+        const pendiente = data.solicitudes?.find(
+          (s: { confirmada: boolean; codigo: string }) => !s.confirmada
+        );
+        setCodigoPendiente(pendiente?.codigo ?? null);
       })
       .catch(() => setAutenticado(false))
       .finally(() => setCargandoSesion(false));
+  };
+
+  useEffect(() => {
+    cargarSesion();
   }, []);
 
   const handleDownload = async () => {
@@ -183,13 +196,27 @@ export default function StepResultados({ perfil, resultado, onRestart }: Props) 
                   {downloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
                   Descargar PDF ({creditos} disp.)
                 </button>
+              ) : codigoPendiente ? (
+                <div className="flex items-center gap-2">
+                  <span className="rounded-lg bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-700">
+                    Pago pendiente — código {codigoPendiente}
+                  </span>
+                  <a
+                    href={construirLinkWhatsApp(codigoPendiente)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 rounded-lg bg-mint px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-mint-light"
+                  >
+                    <MessageCircle size={16} /> Enviar comprobante
+                  </a>
+                </div>
               ) : (
-                <Link
-                  href="/#precios"
+                <button
+                  onClick={() => setMostrarTransferencia(true)}
                   className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan to-mint px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
                 >
-                  <Lock size={16} /> Comprar descargas
-                </Link>
+                  <Landmark size={16} /> Pagar por transferencia
+                </button>
               )}
             </div>
 
@@ -283,6 +310,15 @@ export default function StepResultados({ perfil, resultado, onRestart }: Props) 
           </button>
         </div>
       </div>
+
+      {mostrarTransferencia && (
+        <TransferenciaModal
+          onClose={() => {
+            setMostrarTransferencia(false);
+            cargarSesion();
+          }}
+        />
+      )}
     </div>
   );
 }

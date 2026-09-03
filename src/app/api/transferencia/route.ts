@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { registrarSolicitudTransferencia } from "@/lib/db";
+import { crearSolicitudTransferencia, obtenerUsuarioPorId } from "@/lib/db";
+import { usuarioIdDeSesion } from "@/lib/userAuth";
 import { PRECIO_PAQUETE_CENTAVOS } from "@/lib/config";
 
 export async function POST(req: NextRequest) {
-  try {
-    const { email } = await req.json();
+  const usuarioId = usuarioIdDeSesion(req);
+  if (!usuarioId) {
+    return NextResponse.json({ error: "Necesitas iniciar sesión primero." }, { status: 401 });
+  }
 
-    if (typeof email !== "string" || !email.includes("@")) {
-      return NextResponse.json({ error: "Ingresa un correo válido." }, { status: 400 });
+  try {
+    const usuario = await obtenerUsuarioPorId(usuarioId);
+    if (!usuario) {
+      return NextResponse.json({ error: "Necesitas iniciar sesión primero." }, { status: 401 });
     }
 
-    await registrarSolicitudTransferencia(email, PRECIO_PAQUETE_CENTAVOS);
-    return NextResponse.json({ ok: true });
+    const codigo = await crearSolicitudTransferencia(usuario.id, usuario.correo, PRECIO_PAQUETE_CENTAVOS);
+    return NextResponse.json({ ok: true, codigo });
   } catch (error) {
     console.error("Error al registrar solicitud de transferencia:", error);
     return NextResponse.json({ error: "No se pudo registrar tu solicitud." }, { status: 500 });

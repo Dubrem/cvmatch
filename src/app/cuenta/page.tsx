@@ -3,8 +3,20 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Download, FileText, LogOut, Loader2, Sparkles } from "lucide-react";
+import {
+  Download,
+  FileText,
+  LogOut,
+  Loader2,
+  Sparkles,
+  Landmark,
+  CheckCircle2,
+  Clock,
+  MessageCircle,
+} from "lucide-react";
 import { generarCvPdf } from "@/lib/pdf";
+import { construirLinkWhatsApp } from "@/lib/config";
+import TransferenciaModal from "@/components/TransferenciaModal";
 import type { MatchResult, PerfilEgresado } from "@/lib/types";
 
 interface CvGuardado {
@@ -14,11 +26,19 @@ interface CvGuardado {
   fecha: string;
 }
 
+interface SolicitudCliente {
+  codigo: string;
+  monto: number;
+  confirmada: boolean;
+  fecha: string;
+}
+
 interface Cuenta {
   nombre: string;
   correo: string;
   creditos: number;
   cvs: CvGuardado[];
+  solicitudes: SolicitudCliente[];
 }
 
 export default function CuentaPage() {
@@ -26,6 +46,7 @@ export default function CuentaPage() {
   const [cuenta, setCuenta] = useState<Cuenta | null>(null);
   const [loading, setLoading] = useState(true);
   const [descargandoId, setDescargandoId] = useState<number | null>(null);
+  const [mostrarTransferencia, setMostrarTransferencia] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const cargar = async () => {
@@ -112,17 +133,60 @@ export default function CuentaPage() {
             <p className="text-3xl font-bold text-navy">{cuenta.creditos}</p>
           </div>
           {cuenta.creditos === 0 && (
-            <Link
-              href="/#precios"
-              className="rounded-lg bg-gradient-to-r from-cyan to-mint px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            <button
+              onClick={() => setMostrarTransferencia(true)}
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan to-mint px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
             >
-              Comprar descargas
-            </Link>
+              <Landmark size={16} /> Pagar por transferencia
+            </button>
           )}
         </div>
 
         {error && (
           <p className="mt-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</p>
+        )}
+
+        {cuenta.solicitudes.length > 0 && (
+          <>
+            <h2 className="mt-8 text-sm font-bold uppercase tracking-wide text-muted">
+              Estado de tus pagos
+            </h2>
+            <div className="mt-3 space-y-3">
+              {cuenta.solicitudes.map((s) => (
+                <div
+                  key={s.codigo}
+                  className="card-shadow flex items-center justify-between rounded-2xl border border-border bg-surface p-5"
+                >
+                  <div>
+                    <p className="font-mono text-sm font-bold text-navy">{s.codigo}</p>
+                    <p className="text-xs text-muted">
+                      ${(s.monto / 100).toLocaleString("es-MX")} MXN ·{" "}
+                      {new Date(s.fecha).toLocaleString("es-MX")}
+                    </p>
+                  </div>
+                  {s.confirmada ? (
+                    <span className="flex items-center gap-1.5 rounded-full bg-mint/10 px-3 py-1.5 text-xs font-semibold text-mint">
+                      <CheckCircle2 size={14} /> Pago aprobado
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                        <Clock size={14} /> Pendiente
+                      </span>
+                      <a
+                        href={construirLinkWhatsApp(s.codigo)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 rounded-lg bg-mint px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-mint-light"
+                      >
+                        <MessageCircle size={14} /> Enviar comprobante
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         <h2 className="mt-8 text-sm font-bold uppercase tracking-wide text-muted">
@@ -172,6 +236,15 @@ export default function CuentaPage() {
           </div>
         )}
       </main>
+
+      {mostrarTransferencia && (
+        <TransferenciaModal
+          onClose={() => {
+            setMostrarTransferencia(false);
+            cargar();
+          }}
+        />
+      )}
     </div>
   );
 }
