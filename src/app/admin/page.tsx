@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, DollarSign, ShoppingBag, Lock, Loader2, CheckCircle2, MessageCircle } from "lucide-react";
+import { Eye, DollarSign, ShoppingBag, Lock, Loader2, CheckCircle2, MessageCircle, Trash2 } from "lucide-react";
 import type { EstadisticasAdmin } from "@/lib/db";
 import { construirLinkWhatsAppACliente } from "@/lib/config";
 
@@ -13,6 +13,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [aprobandoId, setAprobandoId] = useState<number | null>(null);
   const [mensajeAprobacion, setMensajeAprobacion] = useState<string | null>(null);
+  const [reseteando, setReseteando] = useState(false);
 
   const cargarStats = async () => {
     setLoading(true);
@@ -137,6 +138,28 @@ export default function AdminPage() {
     }
   };
 
+  const handleResetear = async () => {
+    const confirmado = window.confirm(
+      "Esto borra TODO permanentemente: visitas, compras, cuentas de clientes, CVs guardados, solicitudes de pago y donantes. No se puede deshacer. ¿Continuar?"
+    );
+    if (!confirmado) return;
+
+    setReseteando(true);
+    try {
+      const res = await fetch("/api/admin/reset", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json();
+        setMensajeAprobacion(data.error ?? "No se pudo borrar la información.");
+        return;
+      }
+      await cargarStats();
+    } catch {
+      setMensajeAprobacion("Error de conexión al borrar.");
+    } finally {
+      setReseteando(false);
+    }
+  };
+
   if (!stats) return null;
 
   const maxVisitas = Math.max(1, ...stats.visitasUltimos7Dias.map((d) => d.visitas));
@@ -144,8 +167,20 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-background px-6 py-10">
       <div className="mx-auto max-w-5xl">
-        <h1 className="text-2xl font-bold text-navy">Panel de administración</h1>
-        <p className="mt-1 text-sm text-muted">Visitas y compras de MatchCV.</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-navy">Panel de administración</h1>
+            <p className="mt-1 text-sm text-muted">Visitas y compras de MatchCV.</p>
+          </div>
+          <button
+            onClick={handleResetear}
+            disabled={reseteando}
+            className="flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+          >
+            {reseteando ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+            Borrar todos los datos
+          </button>
+        </div>
 
         <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
           <div className="card-shadow rounded-2xl border border-border bg-surface p-6">

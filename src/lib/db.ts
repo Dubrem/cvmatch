@@ -405,6 +405,21 @@ export interface EstadisticasAdmin {
   recuperaciones: RecuperacionPendiente[];
 }
 
+export async function resetearDatos(): Promise<void> {
+  await ensureTables();
+  await getPool().query(
+    `TRUNCATE TABLE
+       page_views,
+       purchases,
+       codigos_recuperacion,
+       cvs_generados,
+       solicitudes_transferencia,
+       donantes,
+       usuarios
+     RESTART IDENTITY CASCADE`
+  );
+}
+
 export async function obtenerEstadisticas(): Promise<EstadisticasAdmin> {
   await ensureTables();
   const db = getPool();
