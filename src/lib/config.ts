@@ -1,3 +1,4 @@
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://cvmatch-1b6e.onrender.com";
 export const PRECIO_PAQUETE_CENTAVOS = 4900;
 export const DESCARGAS_PAQUETE = 3;
 export const CORREO_COMPROBANTES = "primermatchcv@gmail.com";

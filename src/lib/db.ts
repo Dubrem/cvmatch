@@ -243,7 +243,20 @@ export async function aprobarSolicitudTransferencia(
     usuario.id,
   ]);
 
-  return { ok: true, mensaje: `Se agregaron ${DESCARGAS_PAQUETE} descargas a ${usuario.correo}.` };
+  let avisoCorreo = " No se pudo enviar el correo de aviso (falta configurar GMAIL_APP_PASSWORD).";
+  try {
+    const { enviarNotificacionAprobacion } = await import("./email");
+    const enviado = await enviarNotificacionAprobacion(usuario.correo, usuario.nombre);
+    if (enviado) avisoCorreo = " Se le notificó por correo.";
+  } catch (error) {
+    console.error("Error al enviar correo de notificación:", error);
+    avisoCorreo = " No se pudo enviar el correo de aviso (revisa la configuración de Gmail).";
+  }
+
+  return {
+    ok: true,
+    mensaje: `Se agregaron ${DESCARGAS_PAQUETE} descargas a ${usuario.correo}.${avisoCorreo}`,
+  };
 }
 
 export interface EstadisticasAdmin {
