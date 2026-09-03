@@ -20,6 +20,7 @@ export default function StepPerfil({ perfil, onChange, onNext }: Props) {
   const [mejorandoResumen, setMejorandoResumen] = useState(false);
   const [mejorandoExperienciaId, setMejorandoExperienciaId] = useState<string | null>(null);
   const [errorIa, setErrorIa] = useState<string | null>(null);
+  const [habilidadesTexto, setHabilidadesTexto] = useState(() => perfil.habilidades.join(", "));
 
   const update = <K extends keyof PerfilEgresado>(key: K, value: PerfilEgresado[K]) => {
     onChange({ ...perfil, [key]: value });
@@ -191,13 +192,14 @@ export default function StepPerfil({ perfil, onChange, onNext }: Props) {
           <label className={labelClass}>Habilidades * (separadas por coma)</label>
           <input
             className={inputClass}
-            value={perfil.habilidades.join(", ")}
-            onChange={(e) =>
+            value={habilidadesTexto}
+            onChange={(e) => {
+              setHabilidadesTexto(e.target.value);
               update(
                 "habilidades",
                 e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
-              )
-            }
+              );
+            }}
             placeholder="Excel, Power BI, Trabajo en equipo, SQL"
           />
         </div>
